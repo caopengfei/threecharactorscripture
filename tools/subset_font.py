@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-"""LXGW 文楷子集：只保留内容与 UI 用字，输出 res/font/wenkai_subset.ttf"""
-import json, os
+"""LXGW 文楷子集：只保留内容与 UI 用字，输出 res/font/wenkai_subset.ttf
+
+源字体：LXGW WenKai v1.510 — https://github.com/lxgw/LxgwWenKai/releases（勿混用其他版本重新生成）
+"""
+import json, os, sys
 from fontTools import subset
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -13,11 +16,13 @@ UI_TEXT = ("三字经继续学习章节教育之要蒙学伦理经典导读历�
            "清除确认取消版本内容基于通行版下一上更多操作跳转标记面板全部没有记录还没有"
            "开始学习吧退出释义典故注释译文小故事篇本章中第天启"
            "操作失败请重试")
-EXTRA = "0123456789.%/：，。！？、（）·—…♪▶◀✓☰←→↑↓"
+EXTRA = "0123456789.%/：，。！？、（）·—…♪▶◀✓☰←→↑↓" \
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"  # A-Z a-z 兜底：低端电视盒 fallback 不可预测
 
 def collect_chars():
     chars = set(UI_TEXT + EXTRA)
-    d = json.load(open(CONTENT, encoding="utf-8"))
+    with open(CONTENT, encoding="utf-8") as f:
+        d = json.load(f)
     for c in d["chapters"]:
         chars.update(c["title"])
         for u in c["units"]:
@@ -38,10 +43,20 @@ def main():
     options.notdef_outline = True
     font = subset.load_font(SRC, options)
     s = subset.Subsetter(options)
-    s.populate(text=collect_chars())
+    needed = collect_chars()
+    s.populate(text=needed)
     s.subset(font)
     subset.save_font(font, OUT, options)
-    print("OK ->", os.path.abspath(OUT), os.path.getsize(OUT) // 1024, "KB")
+
+    # 自检：重新加载输出字体，逐字确认 cmap 覆盖；缺字宁可构建失败，不可静默回退系统字体
+    from fontTools.ttLib import TTFont
+    cmap = TTFont(OUT).getBestCmap()
+    missing = "".join(c for c in needed if ord(c) not in cmap)
+    if missing:
+        print("MISSING in subset (%d chars): %s" % (len(missing), missing))
+        sys.exit(1)
+    print("OK ->", os.path.abspath(OUT), os.path.getsize(OUT) // 1024, "KB,",
+          len(needed), "chars all covered")
 
 if __name__ == "__main__":
     main()
