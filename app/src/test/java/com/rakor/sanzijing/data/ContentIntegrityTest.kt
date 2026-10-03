@@ -53,14 +53,14 @@ class ContentIntegrityTest {
     @Test
     fun `典故覆盖率不低于百分之六十`() {
         val withStory = repo.units.count { it.story != null }
-        assertTrue(withStory >= 115, "有典故的单元 $withStory < 115")
+        assertTrue(withStory >= 116, "有典故的单元 $withStory < 116（60%）")
     }
 
     @Test
     fun `章节标题非空且id连续`() {
         repo.chapters.forEachIndexed { i, ch ->
-            assertTrue(ch.title.isNotBlank())
-            assertEquals("ch%02d".format(i + 1), ch.id)
+            assertTrue(ch.title.isNotBlank(), "ch${i + 1} title 空")
+            assertEquals("ch%02d".format(i + 1), ch.id, "章节顺序错位: ${ch.id}")
             assertTrue(ch.units.isNotEmpty())
         }
     }
