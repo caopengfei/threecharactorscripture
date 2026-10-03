@@ -7,3 +7,4 @@ build/
 .idea/
 tools/gradle-8.10.2-bin.zip
 tools/gradle-8.10.2/
+__pycache__/
