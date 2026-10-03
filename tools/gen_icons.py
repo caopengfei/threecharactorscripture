@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-"""TV banner (640x360) 与启动图标：奶油渐变底 + 珊瑚印章 + 文楷字"""
-import os
+"""TV banner (640x360) 与启动图标：奶油渐变底 + 珊瑚印章 + 文楷字
+
+源字体：LXGW WenKai v1.510 — https://github.com/lxgw/LxgwWenKai/releases（勿混用其他版本重新生成）
+"""
+import os, sys
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -43,6 +46,10 @@ def make_launcher():
         os.makedirs(os.path.join(RES, f"mipmap-{dpi}"), exist_ok=True)
         img.save(os.path.join(RES, f"mipmap-{dpi}", "ic_launcher.png"))
 
-make_banner()
-make_launcher()
-print("icons OK")
+if __name__ == "__main__":
+    if not os.path.exists(FONT):
+        sys.exit("缺少源字体 tools/LXGWWenKai-Regular.ttf（v1.510），"
+                 "下载: https://github.com/lxgw/LxgwWenKai/releases（勿混用其他版本重新生成）")
+    make_banner()
+    make_launcher()
+    print("icons OK")
