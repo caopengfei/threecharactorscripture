@@ -103,13 +103,14 @@ class ReaderViewModel(
 
     private fun stateFor(index: Int, prev: ReaderUiState): ReaderUiState {
         val unit = contentRepo.unitAt(index)
-        val chapter = contentRepo.chapterAt(contentRepo.chapterIndexOf(unit.id))
+        val chapterIdx = contentRepo.chapterIndexOf(unit.id)
+        val chapter = contentRepo.chapterAt(chapterIdx)
         return prev.copy(
             unit = unit,
             unitIndex = index,
             totalCount = totalCount,
             chapterTitle = chapter.title,
-            chapterIndex = contentRepo.chapterIndexOf(unit.id),
+            chapterIndex = chapterIdx,
             chapterPos = chapter.units.indexOfFirst { it.id == unit.id } + 1,
             chapterSize = chapter.units.size,
         )

@@ -1,7 +1,6 @@
 package com.rakor.sanzijing.ui.reader
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +34,10 @@ import com.rakor.sanzijing.ui.theme.InkBrownFaded
 import com.rakor.sanzijing.ui.theme.ScrimBrown
 import com.rakor.sanzijing.ui.theme.SectionLabelStyle
 
-/** 菜单键呼出的操作面板：连读、熟读、跳章。就地组合于 ReaderScreen 根节点内（勿改 Popup/Dialog）。 */
+/** 菜单键呼出的操作面板：连读、熟读、跳章。
+ *  打开时焦点落在第一行（panelFocus），方向键在面板行间移动；
+ *  勿改 Popup/Dialog，勿将遮罩设为可聚焦（会构成 D-pad 焦点陷阱）。
+ */
 @Composable
 fun ActionPanel(
     state: ReaderUiState,
@@ -45,20 +49,19 @@ fun ActionPanel(
     Box(
         Modifier
             .fillMaxSize()
-            .background(ScrimBrown)
-            .focusRequester(panelFocus)
-            .focusable(),
+            .background(ScrimBrown),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             Modifier
                 .width(600.dp)
                 .background(CardWhite, RoundedCornerShape(28.dp))
-                .padding(32.dp),
+                .padding(32.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("操作", style = SectionLabelStyle.copy(fontSize = 24.sp))
-            PanelRow("连读模式（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关") {
+            PanelRow("连读模式（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关", modifier = Modifier.focusRequester(panelFocus)) {
                 vm.setContinuous(!state.settings.continuousPlay)
             }
             PanelRow(
@@ -70,10 +73,10 @@ fun ActionPanel(
                 },
             ) { vm.toggleMasteredNow() }
             Text("跳转章节", style = BodyStyle.copy(color = InkBrownFaded))
-            chapters.chunked(3).forEach { rowChapters ->
+            chapters.chunked(3).forEachIndexed { r, rowChapters ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    rowChapters.forEach { ch ->
-                        val index = chapters.indexOf(ch)
+                    rowChapters.forEachIndexed { c, ch ->
+                        val index = r * 3 + c
                         val isCurrent = index == state.chapterIndex
                         Card(
                             onClick = {
@@ -102,9 +105,10 @@ fun ActionPanel(
 }
 
 @Composable
-private fun PanelRow(label: String, value: String, onClick: () -> Unit) {
+private fun PanelRow(label: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
         onClick = onClick,
+        modifier = modifier,
         colors = CardDefaults.colors(
             containerColor = CardWhite,
             contentColor = InkBrown,
