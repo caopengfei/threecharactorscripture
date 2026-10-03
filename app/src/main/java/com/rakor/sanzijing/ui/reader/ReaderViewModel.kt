@@ -9,6 +9,7 @@ import com.rakor.sanzijing.data.content.ContentRepository
 import com.rakor.sanzijing.data.content.LessonUnit
 import com.rakor.sanzijing.data.prefs.ReaderSettings
 import com.rakor.sanzijing.data.prefs.SettingsRepository
+import android.util.Log
 import com.rakor.sanzijing.data.progress.ProgressRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +64,7 @@ class ReaderViewModel(
             val progress = progressRepo.observeProgress().first()
             _state.update {
                 // ready 前 UI 不会发指令；防御性保护已发生的导航
-                val base = if (it.ready) it else stateFor(startIndex(startUnitId), it)
+                val base = if (it.unitIndex != startIndex(startUnitId)) it else stateFor(startIndex(startUnitId), it)
                 base.copy(settings = settings, statusOf = progress.associate { e -> e.unitId to e.status }, ready = true)
             }
             if (settings.autoPlay) playCurrent()
@@ -90,7 +91,8 @@ class ReaderViewModel(
                 throw cancellation
             } catch (e: Exception) {
                 // 儿童应用：Room/DataStore 偶发 IO 抖动不崩溃，toast 提示后可重试
-                _state.update { it.copy(toast = "操作失败，请重试") }
+                Log.w("ReaderViewModel", "tracked 操作失败", e)
+            _state.update { it.copy(toast = "操作失败，请重试") }
             } finally {
                 _state.update { s -> s.copy(pendingWork = s.pendingWork - 1) }
             }
@@ -139,7 +141,7 @@ class ReaderViewModel(
         val downAt = okDownAt ?: return
         okDownAt = null
         val elapsed = now() - downAt
-        if (elapsed > 10_000) return   // 遥测丢抬起事件保护——超过 10 秒的按下视为残留状态，忽略本次
+        if (elapsed > 10_000) return   // 遥控器丢抬起事件保护——超过 10 秒的按下视为残留状态，忽略本次
         if (elapsed >= 600) {
             tracked { progressRepo.toggleMastered(_state.value.unit.id) }
         } else {
