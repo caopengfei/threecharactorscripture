@@ -17,9 +17,9 @@ fun AppNavGraph(app: SanzijingApp) {
         composable("home") {
             HomeScreen(
                 app = app,
-                onContinue = { unitId -> nav.navigate("reader/$unitId") },
-                onOpenReport = { nav.navigate("report") },
-                onOpenSettings = { nav.navigate("settings") },
+                onContinue = { unitId -> nav.navigate("reader/$unitId") { launchSingleTop = true } },
+                onOpenReport = { nav.navigate("report") { launchSingleTop = true } },
+                onOpenSettings = { nav.navigate("settings") { launchSingleTop = true } },
             )
         }
         composable("reader/{unitId}") { entry ->

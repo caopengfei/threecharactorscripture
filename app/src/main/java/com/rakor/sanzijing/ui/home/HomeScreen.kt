@@ -110,11 +110,7 @@ fun HomeScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             state.chapters.forEach { ch ->
                 Card(
-                    onClick = {
-                        val firstUnitId = app.container.contentRepository.chapters
-                            .first { it.id == ch.id }.units.first().id
-                        onContinue(firstUnitId)
-                    },
+                    onClick = { onContinue(ch.firstUnitId) },
                     modifier = Modifier.weight(1f).height(110.dp),
                     colors = homeCardColors(),
                 ) {

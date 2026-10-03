@@ -20,6 +20,7 @@ import java.time.LocalDate
 data class ChapterUi(
     val id: String,
     val title: String,
+    val firstUnitId: String,
     val total: Int,
     val read: Int,
     val inProgress: Boolean,
@@ -52,7 +53,7 @@ class HomeViewModel(
             .collect { _state.value = it }
     }
 
-    /** 生产环境 externalScope 为应用级作用域；测试中以 TestScope 充当，随 VM 结束。 */
+    /** collector 随 VM 取消；externalScope 为 VM 级作用域（与 ReaderViewModel 约定一致）。 */
     override fun onCleared() {
         collectorJob.cancel()
         super.onCleared()
@@ -75,11 +76,12 @@ class HomeViewModel(
             readCount = progress.count { it.status > ProgressRepository.STATUS_NEW },
             totalCount = contentRepo.units.size,
             streakDays = progressRepo.studyStreak(stats, today()),
-            minutesToday = (stats.firstOrNull { it.date == todayStr }?.secondsStudied ?: 0) / 60,
+            minutesToday = ((stats.firstOrNull { it.date == todayStr }?.secondsStudied ?: 0) + 59) / 60,
             chapters = contentRepo.chapters.map { ch ->
                 ChapterUi(
                     id = ch.id,
                     title = ch.title,
+                    firstUnitId = ch.units.first().id,
                     total = ch.units.size,
                     read = ch.units.count { (statusOf[it.id] ?: 0) > ProgressRepository.STATUS_NEW },
                     inProgress = ch.units.any { it.id == contId },

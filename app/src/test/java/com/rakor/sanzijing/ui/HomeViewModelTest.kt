@@ -38,7 +38,7 @@ class HomeViewModelTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries().build()
         val content = ContentRepository { FileInputStream(TestFiles.moduleFile("src/main/assets/content/sanzijing.json")) }
-        progress = ProgressRepository(db, clock = { 1L })
+        progress = ProgressRepository(db, clock = { 1L }, today = { LocalDate.of(2026, 10, 3) })
         scope = TestScope(StandardTestDispatcher())
         vm = HomeViewModel(content, progress, scope, today = { LocalDate.of(2026, 10, 3) })
     }
