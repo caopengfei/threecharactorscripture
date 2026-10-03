@@ -3089,9 +3089,7 @@ fun ActionPanel(
     Box(
         Modifier
             .fillMaxSize()
-            .background(ScrimBrown)
-            .focusRequester(panelFocus)
-            .focusable(),
+            .background(ScrimBrown),   // 遮罩纯视觉：可聚焦的全屏遮罩会构成 D-pad 焦点陷阱（2D 焦点搜索只在兄弟间进行）
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -3102,7 +3100,8 @@ fun ActionPanel(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("操作", style = SectionLabelStyle.copy(fontSize = 24.sp))
-            PanelRow("连读模式（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关") {
+            PanelRow("连读模式（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关",
+                modifier = Modifier.focusRequester(panelFocus)) {   // panelFocus 直落首行，方向键才能在行间移动
                 vm.setContinuous(!state.settings.continuousPlay)
             }
             PanelRow(
@@ -3149,9 +3148,10 @@ private const val ProgressStatus_MASTERED = 2
 private const val ProgressStatus_READ = 1
 
 @Composable
-private fun PanelRow(label: String, value: String, onClick: () -> Unit) {
+private fun PanelRow(label: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         onClick = onClick,
+        modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = CardWhite,
             contentColor = InkBrown,
