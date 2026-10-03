@@ -93,8 +93,9 @@ docs/superpowers/plans/2026-10-03-sanzijing-tv-app.md   # 本计划
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
 export http_proxy=http://127.0.0.1:9999 https_proxy=http://127.0.0.1:9999
+mkdir -p tools
 curl -L -o tools/gradle-8.10.2-bin.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
-mkdir -p tools && unzip -q -o tools/gradle-8.10.2-bin.zip -d tools
+unzip -q -o tools/gradle-8.10.2-bin.zip -d tools
 export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
 "$JAVA_HOME/bin/java" -version   # 应输出 17 或 21
 tools/gradle-8.10.2/bin/gradle wrapper --gradle-version 8.10.2
