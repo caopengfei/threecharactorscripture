@@ -5,6 +5,7 @@ build/
 .kotlin/
 *.iml
 .idea/
+tools/LXGWWenKai-Regular.ttf
 tools/gradle-8.10.2-bin.zip
 tools/gradle-8.10.2/
 __pycache__/
