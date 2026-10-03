@@ -16,10 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,12 +30,12 @@ import com.rakor.sanzijing.ui.theme.CaptionStyle
 import com.rakor.sanzijing.ui.theme.CardTitleStyle
 import com.rakor.sanzijing.ui.theme.Coral
 import com.rakor.sanzijing.ui.theme.CoralDeep
+import com.rakor.sanzijing.ui.theme.CoralTrack
 import com.rakor.sanzijing.ui.theme.TrackBrown
 
 @Composable
-fun ReportScreen(onBack: () -> Unit) {
+fun ReportScreen(app: SanzijingApp, onBack: () -> Unit) {
     BackHandler { onBack() }
-    val app = LocalContext.current.applicationContext as SanzijingApp
     val vm: ReportViewModel = viewModel(factory = ReportViewModel.factory(app))
     val state by vm.state.collectAsStateWithLifecycle()
 
@@ -53,7 +51,7 @@ fun ReportScreen(onBack: () -> Unit) {
                 val fraction = if (state.totalCount == 0) 0f else state.totalRead.toFloat() / state.totalCount
                 Canvas(Modifier.size(190.dp)) {
                     val stroke = Stroke(width = 22f, cap = StrokeCap.Round)
-                    drawArc(Color(0x22FF8A65), -90f, 360f, useCenter = false, style = stroke)
+                    drawArc(CoralTrack, -90f, 360f, useCenter = false, style = stroke)
                     drawArc(Coral, -90f, 360f * fraction, useCenter = false, style = stroke)
                 }
                 Text("${(fraction * 100).toInt()}%", style = CardTitleStyle.copy(fontSize = 34.sp, color = CoralDeep))
@@ -65,7 +63,7 @@ fun ReportScreen(onBack: () -> Unit) {
                 style = CardTitleStyle.copy(fontSize = 20.sp),
             )
             Spacer(Modifier.height(28.dp))
-            if (state.totalRead == 0) {
+            if (state.ready && state.totalRead == 0) {
                 Text("还没有学习记录，回首页开始第一句吧！", style = CaptionStyle)
             }
             state.chapters.forEach { ch ->

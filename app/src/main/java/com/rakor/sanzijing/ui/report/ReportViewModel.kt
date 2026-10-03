@@ -59,7 +59,7 @@ class ReportViewModel(
             totalCount = contentRepo.units.size,
             masteredCount = progress.count { it.status == ProgressRepository.STATUS_MASTERED },
             streakDays = progressRepo.studyStreak(stats, today()),
-            totalMinutes = stats.sumOf { it.secondsStudied } / 60,
+            totalMinutes = (stats.sumOf { it.secondsStudied } + 59) / 60,
             minutesToday = ((stats.firstOrNull { it.date == todayStr }?.secondsStudied ?: 0) + 59) / 60,
             chapters = contentRepo.chapters.map { ch ->
                 ChapterReport(

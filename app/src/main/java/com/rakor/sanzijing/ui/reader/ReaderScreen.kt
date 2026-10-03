@@ -43,6 +43,7 @@ import com.rakor.sanzijing.ui.common.ToastHost
 import com.rakor.sanzijing.ui.theme.CaptionStyle
 import com.rakor.sanzijing.ui.theme.DividerBrown
 import com.rakor.sanzijing.ui.theme.Coral
+import com.rakor.sanzijing.ui.theme.CoralTrack
 import com.rakor.sanzijing.ui.theme.SectionLabelStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -182,7 +183,7 @@ private fun StatusChip(label: String, filled: Boolean) {
     Box(
         Modifier
             .background(
-                if (filled) Coral else Coral.copy(alpha = 0.12f),
+                if (filled) Coral else CoralTrack,
                 RoundedCornerShape(20.dp),
             )
             .padding(horizontal = 16.dp, vertical = 6.dp)

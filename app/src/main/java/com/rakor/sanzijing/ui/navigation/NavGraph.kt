@@ -26,7 +26,7 @@ fun AppNavGraph(app: SanzijingApp) {
             val unitId = entry.arguments?.getString("unitId") ?: "u001"
             ReaderScreen(app = app, startUnitId = unitId, onBack = { nav.popBackStack() })
         }
-        composable("report") { ReportScreen(onBack = { nav.popBackStack() }) }
+        composable("report") { ReportScreen(app = app, onBack = { nav.popBackStack() }) }
         composable("settings") { SettingsScreen(app = app, onBack = { nav.popBackStack() }) }
     }
 }

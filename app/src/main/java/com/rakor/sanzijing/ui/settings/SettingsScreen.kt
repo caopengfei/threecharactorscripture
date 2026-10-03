@@ -48,14 +48,13 @@ fun SettingsScreen(app: SanzijingApp, onBack: () -> Unit) {
     val firstFocus = remember { FocusRequester() }
     val cancelFocus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) { firstFocus.requestFocus() }
-    // 对话框打开时焦点落在“取消”（破坏性操作不默认聚焦）；
-    // 全关时显式收回焦点到首行，避免依赖“焦点节点移除后隐式回落”的版本行为
     LaunchedEffect(state.showClearDialog) {
-        if (state.showClearDialog) cancelFocus.requestFocus()
-        else firstFocus.requestFocus()
+        if (state.showClearDialog) cancelFocus.requestFocus()   // 破坏性操作默认焦点在取消上
+        else firstFocus.requestFocus()                           // 初始进入/对话框关闭后收回焦点到首行
     }
 
+    // 返回键优先关对话框；对话框未开时才退出设置页（勿合回单 handler，否则导航层会弹走整页）
+    BackHandler(enabled = state.showClearDialog) { vm.requestClearDialog(false) }
     BackHandler(enabled = !state.showClearDialog) { onBack() }
 
     Box(Modifier.fillMaxSize()) {
@@ -63,14 +62,17 @@ fun SettingsScreen(app: SanzijingApp, onBack: () -> Unit) {
             Text("设置", style = AppTitleStyle.copy(fontSize = 30.sp))
             Spacer(Modifier.height(28.dp))
             Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.width(720.dp)) {
+                // 对话框打开时禁用背景行（禁用 Card 不可聚焦），D-pad 焦点被锁在对话框内
+                val rowsEnabled = !state.showClearDialog
                 SettingRow(
                     "自动朗读当前句",
                     if (state.settings.autoPlay) "开" else "关",
+                    enabled = rowsEnabled,
                     modifier = Modifier.focusRequester(firstFocus),
                 ) { vm.toggleAutoPlay() }
-                SettingRow("连读（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关") { vm.toggleContinuous() }
-                SettingRow("拼音显示", if (state.settings.showPinyin) "开" else "关") { vm.togglePinyin() }
-                SettingRow("清除学习进度", "确认 ›") { vm.requestClearDialog(true) }
+                SettingRow("连读（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关", enabled = rowsEnabled) { vm.toggleContinuous() }
+                SettingRow("拼音显示", if (state.settings.showPinyin) "开" else "关", enabled = rowsEnabled) { vm.togglePinyin() }
+                SettingRow("清除学习进度", "确认 ›", enabled = rowsEnabled) { vm.requestClearDialog(true) }
             }
             Spacer(Modifier.height(28.dp))
             Text("版本 1.0 · 内容基于通行版《三字经》", style = CaptionStyle)
@@ -87,18 +89,17 @@ fun SettingsScreen(app: SanzijingApp, onBack: () -> Unit) {
     }
 }
 
+/** tv-material 1.0.1 的 Card 无 enabled 参数：禁用时退化为同视觉的静态 Box（不可聚焦），锁定焦点在对话框内。 */
 @Composable
-private fun SettingRow(label: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.colors(
-            containerColor = CardWhite,
-            contentColor = InkBrown,
-            focusedContainerColor = CardFocused,
-            focusedContentColor = InkBrown,
-        ),
-    ) {
+private fun SettingRow(
+    label: String,
+    value: String,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val rowModifier = modifier.fillMaxWidth()
+    val content: @Composable () -> Unit = {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -107,6 +108,20 @@ private fun SettingRow(label: String, value: String, modifier: Modifier = Modifi
             Text(label, style = BodyStyle)
             Text(value, style = BodyStyle.copy(color = Coral))
         }
+    }
+    if (enabled) {
+        Card(
+            onClick = onClick,
+            modifier = rowModifier,
+            colors = CardDefaults.colors(
+                containerColor = CardWhite,
+                contentColor = InkBrown,
+                focusedContainerColor = CardFocused,
+                focusedContentColor = InkBrown,
+            ),
+        ) { content() }
+    } else {
+        Box(rowModifier.background(CardWhite, RoundedCornerShape(8.dp))) { content() }
     }
 }
 
