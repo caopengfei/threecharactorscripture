@@ -11,7 +11,7 @@ class AppContainer(appContext: Context) {
         Room.databaseBuilder(appContext, AppDatabase::class.java, "sanzijing.db").build()
     }
     val progressRepository: ProgressRepository by lazy {
-        ProgressRepository(db.unitProgressDao(), db.dailyStatsDao())
+        ProgressRepository(db)
     }
 }
 

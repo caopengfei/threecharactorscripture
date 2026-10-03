@@ -30,8 +30,7 @@ class ProgressRepositoryTest {
             .allowMainThreadQueries().build()
         var tick = 1_000_000L
         repo = ProgressRepository(
-            progressDao = db.unitProgressDao(),
-            statsDao = db.dailyStatsDao(),
+            db,
             clock = { ++tick },
             today = { LocalDate.of(2026, 10, 3) },
         )
@@ -98,5 +97,16 @@ class ProgressRepositoryTest {
         repo.clearAll()
         assertEquals(0, db.unitProgressDao().observeAllBlocking().size)
         assertEquals(0, db.dailyStatsDao().observeAllBlocking().size)
+    }
+
+    @Test
+    fun `回放已熟读单元不降级且保留标记时间`() = runTest {
+        repo.toggleMastered("u003")
+        val before = db.unitProgressDao().get("u003")!!
+        repo.onPlaybackCompleted("u003")
+        val after = db.unitProgressDao().get("u003")!!
+        assertEquals(ProgressRepository.STATUS_MASTERED, after.status)
+        assertEquals(before.markedAt, after.markedAt)
+        assertEquals(1, after.readCount)
     }
 }

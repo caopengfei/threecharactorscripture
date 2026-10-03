@@ -41,6 +41,15 @@ interface DailyStatsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: DailyStatsEntity)
 
+    @Query("INSERT OR IGNORE INTO daily_stats (date, secondsStudied, unitsRead) VALUES (:date, 0, 0)")
+    suspend fun ensureRow(date: String)
+
+    @Query("UPDATE daily_stats SET secondsStudied = secondsStudied + :delta WHERE date = :date")
+    suspend fun addSeconds(date: String, delta: Long)
+
+    @Query("UPDATE daily_stats SET unitsRead = unitsRead + 1 WHERE date = :date")
+    suspend fun incrementUnitsRead(date: String)
+
     @Query("DELETE FROM daily_stats")
     suspend fun clearAll()
 }
