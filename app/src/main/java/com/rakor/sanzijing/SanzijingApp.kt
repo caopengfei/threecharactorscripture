@@ -2,7 +2,9 @@ package com.rakor.sanzijing
 
 import android.app.Application
 import android.content.Context
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.rakor.sanzijing.data.audio.AudioPlayer
@@ -28,6 +30,7 @@ class AppContainer(appContext: Context) {
     val settingsRepository: SettingsRepository by lazy {
         val store = PreferenceDataStoreFactory.create(
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
         ) { appContext.preferencesDataStoreFile("settings") }
         SettingsRepository(store)
     }
