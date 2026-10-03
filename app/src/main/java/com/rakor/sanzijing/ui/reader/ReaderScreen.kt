@@ -41,6 +41,7 @@ import com.rakor.sanzijing.data.progress.ProgressRepository
 import com.rakor.sanzijing.ui.common.PinyinPhrase
 import com.rakor.sanzijing.ui.common.ToastHost
 import com.rakor.sanzijing.ui.theme.CaptionStyle
+import com.rakor.sanzijing.ui.theme.DividerBrown
 import com.rakor.sanzijing.ui.theme.Coral
 import com.rakor.sanzijing.ui.theme.SectionLabelStyle
 import kotlinx.coroutines.delay
@@ -56,8 +57,10 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
     val timerScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { anchorFocus.requestFocus() }
-    LaunchedEffect(state.showActionPanel) {
-        if (state.showActionPanel) panelFocus.requestFocus()
+    // 面板全关时显式收回焦点到锚点，避免依赖“焦点节点移除后隐式回落”的版本行为
+    LaunchedEffect(state.showAnnotation, state.showActionPanel) {
+        if (!state.showAnnotation && !state.showActionPanel) anchorFocus.requestFocus()
+        else if (state.showActionPanel) panelFocus.requestFocus()
     }
 
     // 学习时长：页面 RESUMED 期间每秒 +1（暂停/离开自动停止）
@@ -101,6 +104,7 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
                     Text("♪ 朗读中 · 跟着一起读", style = CaptionStyle.copy(color = Coral))
                 }
             }
+            // 内容契约：每单元恒为两个三字短语（ContentIntegrityTest 守卫）
             Row(
                 Modifier.weight(1f).fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -116,7 +120,7 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
                         .padding(horizontal = 40.dp)
                         .width(1.dp)
                         .height(90.dp)
-                        .background(Color(0x33D4954A))
+                        .background(DividerBrown)
                 )
                 PinyinPhrase(
                     hanzi = state.unit.phrases[1].hanzi,
@@ -150,7 +154,7 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
     }
 }
 
-/** 操作面板打开时，方向键/OK 交给面板内焦点组件；菜单/媒体键仍由本页处理。 */
+/** 操作面板打开时，仅菜单键由本页处理（关闭面板），其余按键交给面板内焦点组件。 */
 private fun handleKey(e: KeyEvent, vm: ReaderViewModel, actionPanelOpen: Boolean): Boolean {
     val key = e.key
     if (actionPanelOpen && key != Key.Menu) return false

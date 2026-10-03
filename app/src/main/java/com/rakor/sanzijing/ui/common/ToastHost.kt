@@ -13,10 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.rakor.sanzijing.ui.theme.BodyStyle
+import com.rakor.sanzijing.ui.theme.ToastBrown
 import kotlinx.coroutines.delay
 
 @Composable
-fun ToastHost(toast: String?, onConsumed: () -> Unit) {
+fun ToastHost(toast: String?, onConsumed: () -> Unit, modifier: Modifier = Modifier) {
     LaunchedEffect(toast) {
         if (toast != null) {
             delay(2500)
@@ -24,10 +25,10 @@ fun ToastHost(toast: String?, onConsumed: () -> Unit) {
         }
     }
     if (toast != null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Box(
                 Modifier
-                    .background(Color(0xCC5A4634), RoundedCornerShape(24.dp))
+                    .background(ToastBrown, RoundedCornerShape(24.dp))
                     .padding(horizontal = 28.dp, vertical = 14.dp)
             ) {
                 Text(toast, style = BodyStyle.copy(color = Color.White))

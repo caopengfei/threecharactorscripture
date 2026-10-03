@@ -199,4 +199,11 @@ class ReaderViewModelTest {
         val all = db.dailyStatsDao().observeAllBlocking()
         assertEquals(3L, all.sumOf { it.secondsStudied })
     }
+
+    @Test
+    fun `toggleMasteredNow 直接标记熟读`() = kotlinx.coroutines.test.runTest {
+        vm.toggleMasteredNow()
+        settle()
+        assertEquals(ProgressRepository.STATUS_MASTERED, db.unitProgressDao().get("u001")!!.status)
+    }
 }

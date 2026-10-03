@@ -6,7 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import com.rakor.sanzijing.data.content.Chapter
 
-/** Task 12 用完整操作面板替换此占位。 */
+/** Task 12 用完整操作面板替换此占位。
+ * 须在 ReaderScreen 根节点内就地组合（勿用 Popup/Dialog），按键由根节点 onPreviewKeyEvent 统一捕获。
+ */
 @Composable
 fun ActionPanel(
     state: ReaderUiState,
