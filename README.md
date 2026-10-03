@@ -24,7 +24,7 @@ Compose for TV 构建的全离线《三字经》学习应用：逐句大字拼�
 
 ## 第三方字体
 
-正文字体为 [LXGW WenKai（霞鹜文楷）](https://github.com/lxgw/LxgwWenKai) v1.510 子集（`app/src/main/res/font/wenkai_subset.ttf`），遵循 SIL Open Font License 1.1 授权重新分发。
+课本式混排：汉字大字/标题用 [LXGW WenKai（霞鹜文楷）](https://github.com/lxgw/LxgwWenKai) v1.510 **Medium** 子集（`wenkai_medium_subset.ttf`），拼音用同源 **Regular** 子集（`wenkai_subset.ttf`）；注释/译文等小字正文用系统默认黑体（小字号远距离可读性更好，且与语文课本"课文楷体、注释黑体"的排式一致）。两个子集均遵循 SIL Open Font License 1.1 授权重新分发，由 `tools/subset_font.py` 一次生成。
 
 ## 修改内容（注释/译文/典故/章节）
 
