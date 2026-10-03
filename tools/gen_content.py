@@ -30,7 +30,9 @@ PINYIN_OVERRIDES = {
     "u082": ["sān zhuàn zhě", "yǒu gōng yáng"],# 传（传注）zhuàn
     "u084": ["jīng jì míng", "fāng dú zǐ"],    # 读子（诸子）zǐ
     "u086": ["wǔ zǐ zhě", "yǒu xún yáng"],     # 五子 zǐ
+    "u087": ["wén zhōng zǐ", "jí lǎo zhuāng"], # 文中子 zǐ（王通）
     "u088": ["jīng zǐ tōng", "dú zhū shǐ"],    # 经子 zǐ
+    "u096": ["xià chuán zǐ", "jiā tiān xià"],  # 夏传子 zǐ（儿子）
     "u097": ["sì bǎi zǎi", "qiān xià shè"],    # 载（年）zǎi
     "u099": ["liù bǎi zǎi", "zhì zhòu wáng"],  # 载 zǎi
     "u101": ["bā bǎi zǎi", "zuì cháng jiǔ"],   # 载 zǎi
@@ -45,8 +47,6 @@ PINYIN_OVERRIDES = {
     "u169": ["bì qī suì", "néng fù qí"],       # 泌 bì（李泌）
     "u175": ["ěr nán zǐ", "dāng zì jǐng"],     # 男子 zǐ
     "u189": ["rén wèi zǐ", "jīn mǎn yíng"],    # 遗 wèi（赠给）
-    "u087": ["wén zhōng zǐ", "jí lǎo zhuāng"], # 文中子 zǐ（王通）
-    "u096": ["xià chuán zǐ", "jiā tiān xià"],  # 夏传子 zǐ（儿子）
     "u190": ["wǒ jiāo zǐ", "wéi yī jīng"],     # 教（教导，动词）jiāo
 }
 
@@ -58,18 +58,25 @@ def phrase_pinyin(unit_id, hanzi, idx):
 def main():
     chapters = []
     seen_ids = set()
-    for raw in open(RAW, encoding="utf-8"):
+    for lineno, raw in enumerate(open(RAW, encoding="utf-8"), start=1):
         line = raw.strip()
         if not line:
             continue
         if line.startswith("#chapter"):
-            _, cid, title = line.split()
+            parts = line.split(maxsplit=2)
+            if len(parts) != 3:
+                sys.exit(f"line {lineno}: 章节行格式错误: {line}")
+            _, cid, title = parts
             chapters.append({"id": cid, "title": title, "units": []})
             continue
-        uid, text = line.split("|")
+        if "|" not in line:
+            sys.exit(f"line {lineno}: 单元行缺少 '|': {line}")
+        uid, text = line.split("|", 1)
         parts = text.split("，")
-        assert len(parts) == 2 and all(len(p) == 3 for p in parts), f"bad line: {line}"
-        assert uid not in seen_ids, f"duplicate id: {uid}"
+        if not (len(parts) == 2 and all(len(p) == 3 for p in parts)):
+            sys.exit(f"line {lineno}: 单元行格式错误（须为 三字，三字）: {line}")
+        if uid in seen_ids:
+            sys.exit(f"line {lineno}: 重复的单元 id: {uid}")
         seen_ids.add(uid)
         chapters[-1]["units"].append({
             "id": uid,
@@ -80,23 +87,49 @@ def main():
             "annotation": "",
             "translation": "",
         })
+
+    # 覆盖表自检 1：键必须存在于 RAW
+    unknown = sorted(k for k in PINYIN_OVERRIDES if k not in seen_ids)
+    if unknown:
+        sys.exit(f"PINYIN_OVERRIDES 含 RAW 中不存在的单元 id: {unknown}")
+    # 覆盖表自检 2：每个拼音的音节数必须与对应短语的汉字数一致
+    for c in chapters:
+        for u in c["units"]:
+            ov = PINYIN_OVERRIDES.get(u["id"])
+            if not ov:
+                continue
+            if len(ov) != len(u["phrases"]):
+                sys.exit(f"{u['id']}: 覆盖表应提供 {len(u['phrases'])} 个短语的拼音，实际 {len(ov)} 个")
+            for idx, phrase in enumerate(u["phrases"]):
+                n_syl = len(ov[idx].split())
+                if n_syl != len(phrase["hanzi"]):
+                    sys.exit(f"{u['id']} 第 {idx + 1} 短语「{phrase['hanzi']}」共 {len(phrase['hanzi'])} 字，"
+                             f"覆盖拼音「{ov[idx]}」有 {n_syl} 个音节，数量不一致")
+
     total = sum(len(c["units"]) for c in chapters)
     ann = json.load(open(ANN, encoding="utf-8"))
-    missing = [c["units"][i]["id"] for c in chapters for i in range(len(c["units"])) if c["units"][i]["id"] not in ann]
+    missing = [u["id"] for c in chapters for u in c["units"] if u["id"] not in ann]
     if missing:
         sys.exit(f"annotations.json 缺少 {len(missing)} 条: {missing[:10]} ...")
+    orphans = sorted(k for k in ann if k not in seen_ids)
+    if orphans:
+        sys.exit(f"annotations.json 含 RAW 中不存在的孤儿键: {orphans}")
     for c in chapters:
         for u in c["units"]:
             a = ann[u["id"]]
             u["annotation"] = a["annotation"]
             u["translation"] = a["translation"]
+            if a.get("storyTitle") and not a.get("story"):
+                sys.exit(f"{u['id']}: storyTitle 无对应 story")
+            if a.get("story") and not a.get("storyTitle"):
+                sys.exit(f"{u['id']}: story 无对应 storyTitle")
             if a.get("storyTitle"):
-                assert a.get("story"), f"{u['id']} storyTitle 无对应 story"
                 u["storyTitle"] = a["storyTitle"]
                 u["story"] = a["story"]
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    json.dump({"version": 1, "chapters": chapters}, open(OUT, "w", encoding="utf-8"),
-              ensure_ascii=False, indent=1)
+    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
+        json.dump({"version": 1, "chapters": chapters}, f, ensure_ascii=False, indent=1)
+        f.write("\n")
     print(f"OK {len(chapters)} chapters, {total} units -> {os.path.abspath(OUT)}")
 
 if __name__ == "__main__":
