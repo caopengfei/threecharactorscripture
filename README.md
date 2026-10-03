@@ -5,7 +5,7 @@ Compose for TV 构建的全离线《三字经》学习应用：逐句大字拼�
 ## 开发环境
 
 - Android Studio（本机: `D:\develop\soft\Android Studio`），SDK: `D:\develop\androidsdk`
-- JDK 使用 Android Studio 自带 JBR（`gradle.properties` 已配置）
+- JDK 17 钉扎于 `D:/develop/jdk/bellsoft-17.0.15`（`gradle.properties` 的 `org.gradle.java.home`）；AS 自带 JBR(Java 25) 无法运行 Gradle 8.10 守护进程
 - 命令行构建需代理（已配置于 `gradle.properties`）
 
 ## 常用命令
@@ -22,8 +22,13 @@ Compose for TV 构建的全离线《三字经》学习应用：逐句大字拼�
 用真人录制音频按**同名文件**覆盖该目录后重新打包即可，无需改任何代码。
 重新生成占位音频: `cd tools && python gen_audio.py`。
 
+## 第三方字体
+
+正文字体为 [LXGW WenKai（霞鹜文楷）](https://github.com/lxgw/LxgwWenKai) v1.510 子集（`app/src/main/res/font/wenkai_subset.ttf`），遵循 SIL Open Font License 1.1 授权重新分发。
+
 ## 修改内容（注释/译文/典故/章节）
 
+0. 首次使用工具脚本：`pip install -r tools/requirements.txt`；`subset_font.py`/`gen_icons.py` 需先按脚本内说明下载 LXGW 文楷源字体放入 `tools/`
 1. 编辑 `tools/sanzijing_raw.txt`（文本）与 `tools/annotations.json`（注释/译文/典故）
 2. `cd tools && python gen_content.py` 重新生成 `app/src/main/assets/content/sanzijing.json`
 3. 若新增了生僻字/新拼音字符，重跑 `python subset_font.py` 更新字体子集
