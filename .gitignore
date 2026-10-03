@@ -2,5 +2,8 @@
 local.properties
 .gradle/
 build/
+.kotlin/
 *.iml
 .idea/
+tools/gradle-8.10.2-bin.zip
+tools/gradle-8.10.2/
