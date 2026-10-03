@@ -161,9 +161,9 @@ daily_stats:   date TEXT PK(yyyy-MM-dd), secondsStudied INTEGER, unitsRead INTEG
 
 计分规则：
 
-- 播放某单元音频完成 → `readCount+1`，`status` 至少置 1，`daily_stats.unitsRead+1`
+- 播放某单元音频完成 → `readCount+1`，`status` 至少置 1，`daily_stats.unitsRead+1`（`unitsRead` 语义为"当日朗读完成次数"，重复朗读同句同样累计）
 - 长按 OK → `status=2` 并记 `markedAt`；再次长按回退为 1
-- 学习时长：读书页 RESUMED 且非面板态时按秒累计入当日 `daily_stats`
+- 学习时长：读书页处于 RESUMED 期间按秒累计入当日 `daily_stats`（含查看释义面板的时间）
 - **继续学习 = 全文顺序第一个「未学」单元**（跳章学习不丢位置；全部学完则回到最后互动单元）
 - 连续学习天数：按 `daily_stats` 日期连续性计算
 
