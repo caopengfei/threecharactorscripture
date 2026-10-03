@@ -20,7 +20,7 @@
 - **构建前置环境**（每个运行 gradle 的步骤都要先执行）:
   ```bash
   cd "D:/develop/src/rakor/threecharactorscripture"
-  export JAVA_HOME="/d/develop/soft/Android Studio/jbr"
+  export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15"   # AS JBR(Java 25) 无法运行 Gradle 8.10 守护进程，已改为本机 JDK17（与 gradle.properties 的 org.gradle.java.home 一致）
   export PATH="$JAVA_HOME/bin:$PATH"
   export http_proxy=http://127.0.0.1:9999 https_proxy=http://127.0.0.1:9999
   ```
@@ -96,7 +96,7 @@ export http_proxy=http://127.0.0.1:9999 https_proxy=http://127.0.0.1:9999
 mkdir -p tools
 curl -L -o tools/gradle-8.10.2-bin.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
 unzip -q -o tools/gradle-8.10.2-bin.zip -d tools
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 "$JAVA_HOME/bin/java" -version   # 应输出 17 或 21
 tools/gradle-8.10.2/bin/gradle wrapper --gradle-version 8.10.2
 ls gradlew gradle/wrapper/gradle-wrapper.jar   # 确认生成
@@ -131,7 +131,7 @@ plugins {
 `gradle.properties`:
 ```properties
 org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-org.gradle.java.home=D:/develop/soft/Android Studio/jbr
+org.gradle.java.home=D:/develop/jdk/bellsoft-17.0.15
 android.useAndroidX=true
 android.nonTransitiveRClass=true
 systemProp.http.proxyHost=127.0.0.1
@@ -324,7 +324,7 @@ class MainActivity : ComponentActivity() {
 
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew assembleDebug
 ```
 Expected: `BUILD SUCCESSFUL`，产物 `app/build/outputs/apk/debug/app-debug.apk` 存在。若依赖解析失败，检查代理是否可达（`curl -x http://127.0.0.1:9999 -I https://dl.google.com`）。
@@ -864,7 +864,7 @@ class ContentIntegrityTest {
 
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew testDebugUnitTest --tests "com.rakor.sanzijing.data.ContentIntegrityTest"
 ```
 Expected: **编译失败**（`ContentRepository` 不存在）。
@@ -1075,7 +1075,7 @@ class ProgressRepositoryTest {
 
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew testDebugUnitTest --tests "com.rakor.sanzijing.data.ProgressRepositoryTest"
 ```
 Expected: 编译失败（类不存在）。
@@ -3693,7 +3693,7 @@ Expected: `total mp3: 192`。若个别失败（网络抖动），重跑脚本会
 
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew testDebugUnitTest assembleDebug
 ```
 Expected: 全部测试通过（含 `AudioAssetsTest`）。
@@ -3805,7 +3805,7 @@ class AppSmokeTest {
 
 ```bash
 cd "D:/develop/src/rakor/threecharactorscripture"
-export JAVA_HOME="/d/develop/soft/Android Studio/jbr" && export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME="/d/develop/jdk/bellsoft-17.0.15" && export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew connectedDebugAndroidTest     # 需模拟器已启动
 D:/develop/androidsdk/platform-tools/adb.exe install -r app/build/outputs/apk/debug/app-debug.apk
 ```
