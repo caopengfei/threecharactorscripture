@@ -35,13 +35,12 @@ class FakeAudioPlayer : AudioPlayer {
     val played = mutableListOf<String>()
     var onCompletion: (() -> Unit)? = null
     var failPaths: Set<String> = emptySet()
-    var stopped = 0
     override fun play(assetPath: String, onComplete: () -> Unit, onError: (Exception) -> Unit) {
         if (assetPath in failPaths) { onError(IOException("missing $assetPath")); return }
         played.add(assetPath)
         onCompletion = onComplete
     }
-    override fun stop() { stopped++ }
+    override fun stop() {}
     override fun release() {}
 }
 
@@ -102,6 +101,7 @@ class ReaderViewModelTest {
             if (vm.state.value.pendingWork == 0) return
             Thread.sleep(20)
         }
+        error("settle timeout: pendingWork never reached 0")
     }
 
     @Test
@@ -197,6 +197,6 @@ class ReaderViewModelTest {
         repeat(3) { vm.tickSecond() }
         settle()
         val all = db.dailyStatsDao().observeAllBlocking()
-        assertTrue(all.sumOf { it.secondsStudied } >= 3)
+        assertEquals(3L, all.sumOf { it.secondsStudied })
     }
 }

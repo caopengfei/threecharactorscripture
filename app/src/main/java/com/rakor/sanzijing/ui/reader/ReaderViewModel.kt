@@ -10,8 +10,10 @@ import com.rakor.sanzijing.data.content.LessonUnit
 import com.rakor.sanzijing.data.prefs.ReaderSettings
 import com.rakor.sanzijing.data.prefs.SettingsRepository
 import com.rakor.sanzijing.data.progress.ProgressRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +52,7 @@ class ReaderViewModel(
 
     private val totalCount = contentRepo.units.size
     private var okDownAt: Long? = null
+    private var collectorJobs: List<Job> = emptyList()
 
     private val _state = MutableStateFlow(stateFor(startIndex(startUnitId), ReaderUiState(unit = contentRepo.unitAt(0))))
     val state: StateFlow<ReaderUiState> = _state
@@ -59,26 +62,38 @@ class ReaderViewModel(
             val settings = settingsRepo.settings.first()
             val progress = progressRepo.observeProgress().first()
             _state.update {
-                stateFor(startIndex(startUnitId), it)
-                    .copy(settings = settings, statusOf = progress.associate { e -> e.unitId to e.status }, ready = true)
+                // ready 前 UI 不会发指令；防御性保护已发生的导航
+                val base = if (it.ready) it else stateFor(startIndex(startUnitId), it)
+                base.copy(settings = settings, statusOf = progress.associate { e -> e.unitId to e.status }, ready = true)
             }
             if (settings.autoPlay) playCurrent()
         }
-        externalScope.launch {
-            settingsRepo.settings.collect { s -> _state.update { it.copy(settings = s) } }
-        }
-        externalScope.launch {
-            progressRepo.observeProgress().collect { p ->
-                _state.update { it.copy(statusOf = p.associate { e -> e.unitId to e.status }) }
-            }
-        }
+        collectorJobs = listOf(
+            externalScope.launch {
+                settingsRepo.settings.collect { s -> _state.update { it.copy(settings = s) } }
+            },
+            externalScope.launch {
+                progressRepo.observeProgress().collect { p ->
+                    _state.update { it.copy(statusOf = p.associate { e -> e.unitId to e.status }) }
+                }
+            },
+        )
     }
 
     /** 统计在途可完成协程（测试 settle 用）；永不结束的收集不在此列。 */
     private fun tracked(block: suspend CoroutineScope.() -> Unit) =
         externalScope.launch {
             _state.update { it.copy(pendingWork = it.pendingWork + 1) }
-            try { block() } finally { _state.update { s -> s.copy(pendingWork = s.pendingWork - 1) } }
+            try {
+                block()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Exception) {
+                // 儿童应用：Room/DataStore 偶发 IO 抖动不崩溃，toast 提示后可重试
+                _state.update { it.copy(toast = "操作失败，请重试") }
+            } finally {
+                _state.update { s -> s.copy(pendingWork = s.pendingWork - 1) }
+            }
         }
 
     private fun startIndex(unitId: String): Int = contentRepo.unitIndexOf(unitId).coerceIn(0, totalCount - 1)
@@ -123,7 +138,9 @@ class ReaderViewModel(
     fun okUp() {
         val downAt = okDownAt ?: return
         okDownAt = null
-        if (now() - downAt >= 600) {
+        val elapsed = now() - downAt
+        if (elapsed > 10_000) return   // 遥测丢抬起事件保护——超过 10 秒的按下视为残留状态，忽略本次
+        if (elapsed >= 600) {
             tracked { progressRepo.toggleMastered(_state.value.unit.id) }
         } else {
             _state.update { it.copy(showAnnotation = !it.showAnnotation, showActionPanel = false) }
@@ -137,6 +154,7 @@ class ReaderViewModel(
     fun consumeToast() = _state.update { it.copy(toast = null) }
 
     override fun onCleared() {
+        collectorJobs.forEach { it.cancel() }   // externalScope 生命周期长于 VM，收集器须随 VM 取消
         audioPlayer.stop()
         super.onCleared()
     }
@@ -155,14 +173,17 @@ class ReaderViewModel(
             assetPath = "audio/${unit.id}.mp3",
             onComplete = { tracked { onPlaybackCompleted(unit.id) } },
             onError = {
-                _state.update { it.copy(isPlaying = false, toast = "音频缺失：${unit.fullText}") }
+                _state.update {
+                    // 过期回调守卫：单元已切换时不再翻转新单元的 isPlaying/误报 toast
+                    if (it.unit.id == unit.id) it.copy(isPlaying = false, toast = "音频缺失：${unit.fullText}") else it
+                }
             },
         )
     }
 
     private suspend fun onPlaybackCompleted(unitId: String) {
-        progressRepo.onPlaybackCompleted(unitId)
-        _state.update { it.copy(isPlaying = false) }
+        progressRepo.onPlaybackCompleted(unitId)   // 旧音频确实播完，进度照记
+        _state.update { if (it.unit.id == unitId) it.copy(isPlaying = false) else it }   // 过期回调不翻转新单元状态
         val st = _state.value
         if (st.unit.id == unitId && st.settings.continuousPlay && st.unitIndex < totalCount - 1) {
             moveTo(st.unitIndex + 1, forcePlay = true)
