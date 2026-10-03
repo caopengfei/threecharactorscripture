@@ -155,6 +155,12 @@ class ReaderViewModel(
 
     fun consumeToast() = _state.update { it.copy(toast = null) }
 
+    fun closePanels() = _state.update { it.copy(showAnnotation = false, showActionPanel = false) }
+
+    fun toggleMasteredNow() {
+        tracked { progressRepo.toggleMastered(_state.value.unit.id) }
+    }
+
     override fun onCleared() {
         collectorJobs.forEach { it.cancel() }   // externalScope 生命周期长于 VM，收集器须随 VM 取消
         audioPlayer.stop()

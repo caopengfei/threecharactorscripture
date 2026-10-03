@@ -1,0 +1,19 @@
+package com.rakor.sanzijing.ui.reader
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import com.rakor.sanzijing.data.content.Chapter
+
+/** Task 12 用完整操作面板替换此占位。 */
+@Composable
+fun ActionPanel(
+    state: ReaderUiState,
+    chapters: List<Chapter>,
+    vm: ReaderViewModel,
+    panelFocus: FocusRequester,
+    onDismiss: () -> Unit,
+) {
+    Box(Modifier)
+}
