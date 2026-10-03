@@ -45,6 +45,8 @@ PINYIN_OVERRIDES = {
     "u169": ["bì qī suì", "néng fù qí"],       # 泌 bì（李泌）
     "u175": ["ěr nán zǐ", "dāng zì jǐng"],     # 男子 zǐ
     "u189": ["rén wèi zǐ", "jīn mǎn yíng"],    # 遗 wèi（赠给）
+    "u087": ["wén zhōng zǐ", "jí lǎo zhuāng"], # 文中子 zǐ（王通）
+    "u096": ["xià chuán zǐ", "jiā tiān xià"],  # 夏传子 zǐ（儿子）
     "u190": ["wǒ jiāo zǐ", "wéi yī jīng"],     # 教（教导，动词）jiāo
 }
 
