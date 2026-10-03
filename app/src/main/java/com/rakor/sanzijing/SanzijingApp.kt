@@ -2,9 +2,15 @@ package com.rakor.sanzijing
 
 import android.app.Application
 import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.rakor.sanzijing.data.db.AppDatabase
+import com.rakor.sanzijing.data.prefs.SettingsRepository
 import com.rakor.sanzijing.data.progress.ProgressRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(appContext: Context) {
     private val db: AppDatabase by lazy {
@@ -12,6 +18,12 @@ class AppContainer(appContext: Context) {
     }
     val progressRepository: ProgressRepository by lazy {
         ProgressRepository(db)
+    }
+    val settingsRepository: SettingsRepository by lazy {
+        val store = PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+        ) { appContext.preferencesDataStoreFile("settings") }
+        SettingsRepository(store)
     }
 }
 
