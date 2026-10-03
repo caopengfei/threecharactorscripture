@@ -5,6 +5,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.rakor.sanzijing.data.audio.AudioPlayer
+import com.rakor.sanzijing.data.audio.MediaPlayerAudioPlayer
+import com.rakor.sanzijing.data.content.ContentRepository
 import com.rakor.sanzijing.data.db.AppDatabase
 import com.rakor.sanzijing.data.prefs.SettingsRepository
 import com.rakor.sanzijing.data.progress.ProgressRepository
@@ -19,12 +22,16 @@ class AppContainer(appContext: Context) {
     val progressRepository: ProgressRepository by lazy {
         ProgressRepository(db)
     }
+    val contentRepository: ContentRepository by lazy {
+        ContentRepository { appContext.assets.open(it) }
+    }
     val settingsRepository: SettingsRepository by lazy {
         val store = PreferenceDataStoreFactory.create(
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         ) { appContext.preferencesDataStoreFile("settings") }
         SettingsRepository(store)
     }
+    val audioPlayer: AudioPlayer by lazy { MediaPlayerAudioPlayer(appContext.assets) }
 }
 
 class SanzijingApp : Application() {
