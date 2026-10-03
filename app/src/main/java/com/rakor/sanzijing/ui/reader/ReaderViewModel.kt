@@ -29,6 +29,7 @@ data class ReaderUiState(
     val unitIndex: Int = 0,
     val totalCount: Int = 0,
     val chapterTitle: String = "",
+    val chapterIndex: Int = 0,
     val chapterPos: Int = 0,
     val chapterSize: Int = 0,
     val showAnnotation: Boolean = false,
@@ -108,6 +109,7 @@ class ReaderViewModel(
             unitIndex = index,
             totalCount = totalCount,
             chapterTitle = chapter.title,
+            chapterIndex = contentRepo.chapterIndexOf(unit.id),
             chapterPos = chapter.units.indexOfFirst { it.id == unit.id } + 1,
             chapterSize = chapter.units.size,
         )
@@ -116,9 +118,10 @@ class ReaderViewModel(
     fun next() = moveTo(_state.value.unitIndex + 1)
     fun previous() = moveTo(_state.value.unitIndex - 1)
 
-    fun jumpChapter(delta: Int) {
-        val target = (contentRepo.chapterIndexOf(_state.value.unit.id) + delta)
-            .coerceIn(0, contentRepo.chapters.size - 1)
+    fun jumpChapter(delta: Int) = jumpToChapter(contentRepo.chapterIndexOf(_state.value.unit.id) + delta)
+
+    fun jumpToChapter(index: Int) {
+        val target = index.coerceIn(0, contentRepo.chapters.size - 1)
         moveTo(contentRepo.unitIndexOf(contentRepo.firstUnitIdOfChapter(target)))
     }
 

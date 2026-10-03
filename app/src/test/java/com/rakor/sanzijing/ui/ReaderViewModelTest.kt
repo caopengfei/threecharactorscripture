@@ -206,4 +206,13 @@ class ReaderViewModelTest {
         settle()
         assertEquals(ProgressRepository.STATUS_MASTERED, db.unitProgressDao().get("u001")!!.status)
     }
+
+    @Test
+    fun `jumpToChapter 直达指定章`() = kotlinx.coroutines.test.runTest {
+        vm.jumpToChapter(4)
+        assertEquals("u148", vm.state.value.unit.id)   // 第五章开头
+        assertEquals("勤学典故", vm.state.value.chapterTitle)
+        vm.jumpToChapter(-1)                            // 越界钳制到第一章
+        assertEquals("u001", vm.state.value.unit.id)
+    }
 }
