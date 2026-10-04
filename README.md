@@ -20,7 +20,8 @@ Compose for TV 构建的全离线《三字经》学习应用：逐句大字拼�
 
 音频按单元编号存放于 `app/src/main/assets/audio/u001.mp3 … u192.mp3`。
 用真人录制音频按**同名文件**覆盖该目录后重新打包即可，无需改任何代码。
-重新生成占位音频: `cd tools && python gen_audio.py`。
+当前内置音频由 airvoz.com 的 Xiaoshuang 儿童声生成（含多音字同音字替换对策），
+重新生成/单条重生成流程见 [docs/voice-generation.md](docs/voice-generation.md)；edge-tts 占位脚本 `tools/gen_audio.py` 仍可用。
 
 ## 第三方字体
 
