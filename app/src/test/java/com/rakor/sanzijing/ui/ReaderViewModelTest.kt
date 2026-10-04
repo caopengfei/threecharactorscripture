@@ -152,6 +152,21 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun `连读读完最后一句循环回第一句`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        repeat(191) { vm.next() }                       // 直达尾句
+        assertEquals("u192", vm.state.value.unit.id)
+        player.played.clear()
+        player.onCompletion!!.invoke()                  // 最后一句播完
+        settle()
+        assertEquals(ProgressRepository.STATUS_READ, db.unitProgressDao().get("u192")!!.status)
+        assertEquals("u001", vm.state.value.unit.id)
+        assertEquals(listOf("audio/u001.mp3"), player.played)
+    }
+
+    @Test
     fun `短按OK重读当前句，长按OK标记熟读`() = runTest {
         settle()
         player.played.clear()

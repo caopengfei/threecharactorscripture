@@ -196,8 +196,10 @@ class ReaderViewModel(
         progressRepo.onPlaybackCompleted(unitId)   // 旧音频确实播完，进度照记
         _state.update { if (it.unit.id == unitId) it.copy(isPlaying = false) else it }   // 过期回调不翻转新单元状态
         val st = _state.value
-        if (st.unit.id == unitId && st.settings.continuousPlay && st.unitIndex < totalCount - 1) {
-            moveTo(st.unitIndex + 1, forcePlay = true)
+        if (st.unit.id == unitId && st.settings.continuousPlay) {
+            // 连读循环：最后一句播完回到第一句；手动翻句（next/previous）仍首尾钳制不越界
+            val next = if (st.unitIndex >= totalCount - 1) 0 else st.unitIndex + 1
+            moveTo(next, forcePlay = true)
         }
     }
 

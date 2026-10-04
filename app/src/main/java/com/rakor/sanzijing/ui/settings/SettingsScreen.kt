@@ -70,7 +70,7 @@ fun SettingsScreen(app: SanzijingApp, onBack: () -> Unit) {
                     enabled = rowsEnabled,
                     modifier = Modifier.focusRequester(firstFocus),
                 ) { vm.toggleAutoPlay() }
-                SettingRow("连读（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关", enabled = rowsEnabled) { vm.toggleContinuous() }
+                SettingRow("连读（播完自动下一句，读完循环）", if (state.settings.continuousPlay) "开" else "关", enabled = rowsEnabled) { vm.toggleContinuous() }
                 SettingRow("拼音显示", if (state.settings.showPinyin) "开" else "关", enabled = rowsEnabled) { vm.togglePinyin() }
                 SettingRow("清除学习进度", "确认 ›", enabled = rowsEnabled) { vm.requestClearDialog(true) }
             }

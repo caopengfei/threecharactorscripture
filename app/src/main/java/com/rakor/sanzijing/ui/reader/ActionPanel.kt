@@ -61,7 +61,7 @@ fun ActionPanel(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("操作", style = SectionLabelStyle.copy(fontSize = 24.sp))
-            PanelRow("连读模式（播完自动下一句）", if (state.settings.continuousPlay) "开" else "关", modifier = Modifier.focusRequester(panelFocus)) {
+            PanelRow("连读模式（播完自动下一句，读完循环）", if (state.settings.continuousPlay) "开" else "关", modifier = Modifier.focusRequester(panelFocus)) {
                 vm.setContinuous(!state.settings.continuousPlay)
             }
             PanelRow(
