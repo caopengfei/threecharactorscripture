@@ -152,14 +152,13 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `短按OK开关释义面板，长按OK标记熟读`() = runTest {
+    fun `短按OK重读当前句，长按OK标记熟读`() = runTest {
+        settle()
+        player.played.clear()
         vm.okDown(); Thread.sleep(50); vm.okUp()
-        assertTrue(vm.state.value.showAnnotation)
-        vm.okDown(); Thread.sleep(50); vm.okUp()
-        assertFalse(vm.state.value.showAnnotation)
+        assertEquals(listOf("audio/u001.mp3"), player.played)   // 短按重读
 
         vm.okDown(); Thread.sleep(700); vm.okUp()      // 长按
-        assertFalse(vm.state.value.showAnnotation)
         settle()
         assertEquals(ProgressRepository.STATUS_MASTERED, db.unitProgressDao().get("u001")!!.status)
         vm.okDown(); Thread.sleep(700); vm.okUp()

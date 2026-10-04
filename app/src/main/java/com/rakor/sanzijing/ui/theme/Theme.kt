@@ -12,18 +12,19 @@ import androidx.tv.material3.darkColorScheme
 
 @Composable
 fun SanzijingTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Coral,
-            onPrimary = Color.White,
-            secondary = Honey,
-            onSecondary = Color.White,
-            surface = CardWhite,
-            onSurface = InkBrown,
-            background = CreamTop,
-            onBackground = InkBrown,
-        )
-    ) {
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = Coral,
+                onPrimary = Color.White,
+                secondary = Honey,
+                onSecondary = Color.White,
+                surface = CardWhite,
+                onSurface = InkBrown,
+                background = CreamTop,
+                onBackground = InkBrown,
+                border = CoralDeep,
+            )
+        ) {
         Box(
             Modifier
                 .fillMaxSize()

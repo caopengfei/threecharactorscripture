@@ -4,11 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Text
+import com.rakor.sanzijing.R
 import com.rakor.sanzijing.SanzijingApp
 import com.rakor.sanzijing.ui.common.ProgressBarSimple
 import com.rakor.sanzijing.ui.theme.AppTitleStyle
@@ -32,6 +39,7 @@ import com.rakor.sanzijing.ui.theme.CardFocused
 import com.rakor.sanzijing.ui.theme.CardTitleStyle
 import com.rakor.sanzijing.ui.theme.CardWhite
 import com.rakor.sanzijing.ui.theme.Coral
+import com.rakor.sanzijing.ui.theme.CoralDeep
 import com.rakor.sanzijing.ui.theme.InkBrown
 import com.rakor.sanzijing.ui.theme.SectionLabelStyle
 import com.rakor.sanzijing.ui.theme.TrackBrown
@@ -64,14 +72,26 @@ fun HomeScreen(
             )
         }
         Spacer(Modifier.height(28.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.height(IntrinsicSize.Min),
+        ) {
             Card(
                 onClick = { onContinue(state.continueUnitId) },
-                modifier = Modifier.weight(2.2f).height(150.dp).focusRequester(continueFocus),
+                modifier = Modifier.weight(2.2f).heightIn(min = 160.dp).fillMaxHeight().focusRequester(continueFocus),
                 colors = homeCardColors(),
             ) {
                 Column(Modifier.padding(24.dp)) {
-                    Text("▶ 继续学习", style = SectionLabelStyle)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(R.drawable.ic_play),
+                            contentDescription = null,
+                            tint = CoralDeep,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("继续学习", style = SectionLabelStyle)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text("「${state.continueText}」 · ${state.continueChapterTitle}", style = CardTitleStyle)
                     Spacer(Modifier.height(12.dp))
@@ -83,22 +103,40 @@ fun HomeScreen(
             }
             Card(
                 onClick = onOpenReport,
-                modifier = Modifier.weight(1f).height(150.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 160.dp).fillMaxHeight(),
                 colors = homeCardColors(),
             ) {
                 Column(Modifier.padding(24.dp)) {
-                    Text("📈 学习报告", style = CardTitleStyle)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(R.drawable.ic_chart),
+                            contentDescription = null,
+                            tint = InkBrown,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("学习报告", style = CardTitleStyle)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text("进度 · 熟读 · 连续天数", style = CaptionStyle)
                 }
             }
             Card(
                 onClick = onOpenSettings,
-                modifier = Modifier.weight(1f).height(150.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 160.dp).fillMaxHeight(),
                 colors = homeCardColors(),
             ) {
                 Column(Modifier.padding(24.dp)) {
-                    Text("⚙ 设置", style = CardTitleStyle)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(R.drawable.ic_tune),
+                            contentDescription = null,
+                            tint = InkBrown,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("设置", style = CardTitleStyle)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text("朗读 · 连读 · 拼音", style = CaptionStyle)
                 }

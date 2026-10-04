@@ -90,7 +90,7 @@ fun ActionPanel(
                             ),
                         ) {
                             Text(
-                                ch.title + if (isCurrent) " ✦" else "",
+                                (if (isCurrent) ch.title + "（当前）" else ch.title),
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 8.dp),
                                 style = BodyStyle.copy(fontSize = 15.sp),
                                 textAlign = TextAlign.Center,

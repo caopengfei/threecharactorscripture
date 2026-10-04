@@ -16,7 +16,7 @@ val WenKaiMedium = FontFamily(Font(R.font.wenkai_medium_subset, weight = FontWei
 
 val AppTitleStyle = TextStyle(fontFamily = WenKaiMedium, fontWeight = FontWeight.Medium, fontSize = 40.sp, letterSpacing = 8.sp, color = InkBrown)
 val SectionLabelStyle = TextStyle(fontFamily = WenKaiMedium, fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 4.sp, color = CoralDeep)
-val HanziStyle = TextStyle(fontFamily = WenKaiMedium, fontWeight = FontWeight.Medium, fontSize = 64.sp, letterSpacing = 14.sp, color = InkBrown)
+val HanziStyle = TextStyle(fontFamily = WenKaiMedium, fontWeight = FontWeight.Medium, fontSize = 76.sp, letterSpacing = 16.sp, color = InkBrown)
 val PinyinStyle = TextStyle(fontFamily = WenKai, fontSize = 18.sp, letterSpacing = 5.sp, color = Honey)
 val CardTitleStyle = TextStyle(fontFamily = WenKaiMedium, fontWeight = FontWeight.Medium, fontSize = 22.sp, color = InkBrown)
 val BodyStyle = TextStyle(fontFamily = FontFamily.Default, fontSize = 17.sp, lineHeight = 30.sp, color = InkBrown)

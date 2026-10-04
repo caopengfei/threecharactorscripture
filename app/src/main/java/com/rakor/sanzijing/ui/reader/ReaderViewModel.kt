@@ -32,7 +32,6 @@ data class ReaderUiState(
     val chapterIndex: Int = 0,
     val chapterPos: Int = 0,
     val chapterSize: Int = 0,
-    val showAnnotation: Boolean = false,
     val showActionPanel: Boolean = false,
     val isPlaying: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
@@ -134,13 +133,13 @@ class ReaderViewModel(
     }
 
     fun toggleActionPanel() = _state.update {
-        it.copy(showActionPanel = !it.showActionPanel, showAnnotation = false)
+        it.copy(showActionPanel = !it.showActionPanel)
     }
 
     /** OK 按下：记录时刻（忽略重复 down）。 */
     fun okDown() { if (okDownAt == null) okDownAt = now() }
 
-    /** OK 抬起：>=600ms 长按标记熟读，短按切换释义面板。 */
+    /** OK 抬起：>=600ms 长按标记熟读，短按重读当前句（小米盒子遥控器无播放键）。 */
     fun okUp() {
         val downAt = okDownAt ?: return
         okDownAt = null
@@ -149,7 +148,7 @@ class ReaderViewModel(
         if (elapsed >= 600) {
             tracked { progressRepo.toggleMastered(_state.value.unit.id) }
         } else {
-            _state.update { it.copy(showAnnotation = !it.showAnnotation, showActionPanel = false) }
+            replay()
         }
     }
 
@@ -159,7 +158,7 @@ class ReaderViewModel(
 
     fun consumeToast() = _state.update { it.copy(toast = null) }
 
-    fun closePanels() = _state.update { it.copy(showAnnotation = false, showActionPanel = false) }
+    fun closePanels() = _state.update { it.copy(showActionPanel = false) }
 
     fun toggleMasteredNow() {
         tracked { progressRepo.toggleMastered(_state.value.unit.id) }

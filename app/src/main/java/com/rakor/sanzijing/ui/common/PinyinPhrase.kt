@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.sp
 import com.rakor.sanzijing.ui.theme.HanziStyle
 import com.rakor.sanzijing.ui.theme.PinyinStyle
 
-/** 拼音字号 ≈ 汉字 0.28，与 18sp/64sp 默认一致。 */
+/** 拼音字号 ≈ 汉字 0.28，与 21sp/76sp 默认一致。 */
 private const val PinyinRatio = 0.28f
 
 /** 汉字大字 + 上方拼音；读书页与面板共用。 */
@@ -19,7 +19,7 @@ fun PinyinPhrase(
     hanzi: String,
     pinyin: String,
     showPinyin: Boolean,
-    hanziSize: TextUnit = 64.sp,
+    hanziSize: TextUnit = 76.sp,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
