@@ -65,8 +65,13 @@ fun HomeScreen(
         Row(verticalAlignment = Alignment.Bottom) {
             Text("三字经", style = AppTitleStyle)
             Spacer(Modifier.width(24.dp))
+            // ready 前内容尚在 IO 线程解析：显示加载中，避免闪"0 / 0"空状态
             Text(
-                "已读 ${state.readCount} / ${state.totalCount} 句 · 连续学习 ${state.streakDays} 天 · 今日 ${state.minutesToday} 分钟",
+                if (state.ready) {
+                    "已读 ${state.readCount} / ${state.totalCount} 句 · 连续学习 ${state.streakDays} 天 · 今日 ${state.minutesToday} 分钟"
+                } else {
+                    "加载中…"
+                },
                 style = CaptionStyle,
                 modifier = Modifier.padding(bottom = 6.dp),
             )
@@ -93,7 +98,10 @@ fun HomeScreen(
                         Text("继续学习", style = SectionLabelStyle)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("「${state.continueText}」 · ${state.continueChapterTitle}", style = CardTitleStyle)
+                    Text(
+                        if (state.ready) "「${state.continueText}」 · ${state.continueChapterTitle}" else "内容加载中…",
+                        style = CardTitleStyle,
+                    )
                     Spacer(Modifier.height(12.dp))
                     val fraction = if (state.totalCount == 0) 0f else state.readCount.toFloat() / state.totalCount
                     ProgressBarSimple(fraction, Coral, TrackBrown)

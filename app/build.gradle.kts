@@ -18,9 +18,19 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    signingConfigs {
+        create("release") {
+            // 本机 release 签名；密码在 ~/.gradle/gradle.properties（不入库）
+            storeFile = file("D:/develop/key/rakor.jks")
+            storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").orNull
+            keyAlias = "rakor"
+            keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").orNull
+        }
+    }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true   // R8 压缩：老设备解释执行下 dex 越大首启越慢
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

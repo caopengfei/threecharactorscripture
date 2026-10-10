@@ -15,7 +15,8 @@ class ContentRepository(private val open: (String) -> InputStream) {
     }
 
     val chapters: List<Chapter> get() = content.chapters
-    val units: List<LessonUnit> get() = content.chapters.flatMap { it.units }
+    /** flatMap 结果缓存：compute 等热路径多次取 units 时不再每次重建列表。 */
+    val units: List<LessonUnit> by lazy { content.chapters.flatMap { it.units } }
 
     fun unitIndexOf(unitId: String): Int = units.indexOfFirst { it.id == unitId }
 

@@ -1,4 +1,5 @@
 .superpowers/
+.reasonix/
 local.properties
 .gradle/
 build/
