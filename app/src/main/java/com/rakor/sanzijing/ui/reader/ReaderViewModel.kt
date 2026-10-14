@@ -54,6 +54,8 @@ class ReaderViewModel(
     private val totalCount = contentRepo.units.size
     private var okDownAt: Long? = null
     private var collectorJobs: List<Job> = emptyList()
+    private var inForeground = true
+    private var resumeOnForeground = false
 
     private val _state = MutableStateFlow(stateFor(startIndex(startUnitId), ReaderUiState(unit = contentRepo.unitAt(0))))
     val state: StateFlow<ReaderUiState> = _state
@@ -164,6 +166,25 @@ class ReaderViewModel(
         tracked { progressRepo.toggleMastered(_state.value.unit.id) }
     }
 
+    /** 退到后台（遥控器 HOME、系统界面盖住本页）：立即停朗读并中断连读链。
+     *  音频是 application 级单例，不主动停的话后台会一直播下去，连读还会一路自动翻句记进度。 */
+    fun onLeaveForeground() {
+        inForeground = false
+        resumeOnForeground = _state.value.isPlaying
+        if (_state.value.isPlaying) {
+            _state.update { it.copy(isPlaying = false) }
+            audioPlayer.stop()
+        }
+    }
+
+    /** 回到前台：仅当离开时确在朗读才续读那一句（连读由播完回调继续往后走）。 */
+    fun onEnterForeground() {
+        inForeground = true
+        if (!resumeOnForeground) return
+        resumeOnForeground = false
+        playCurrent()
+    }
+
     override fun onCleared() {
         collectorJobs.forEach { it.cancel() }   // externalScope 生命周期长于 VM，收集器须随 VM 取消
         audioPlayer.stop()
@@ -196,7 +217,7 @@ class ReaderViewModel(
         progressRepo.onPlaybackCompleted(unitId)   // 旧音频确实播完，进度照记
         _state.update { if (it.unit.id == unitId) it.copy(isPlaying = false) else it }   // 过期回调不翻转新单元状态
         val st = _state.value
-        if (st.unit.id == unitId && st.settings.continuousPlay) {
+        if (inForeground && st.unit.id == unitId && st.settings.continuousPlay) {
             // 连读循环：最后一句播完回到第一句；手动翻句（next/previous）仍首尾钳制不越界
             val next = if (st.unitIndex >= totalCount - 1) 0 else st.unitIndex + 1
             moveTo(next, forcePlay = true)

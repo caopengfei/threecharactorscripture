@@ -88,6 +88,12 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
         onPauseOrDispose { job.cancel() }
     }
 
+    // 退到后台即停止朗读（否则按 HOME 后音频继续播、连读继续自动翻句）；回前台续读离开时那一句
+    LifecycleResumeEffect(Unit) {
+        vm.onEnterForeground()
+        onPauseOrDispose { vm.onLeaveForeground() }
+    }
+
     BackHandler(enabled = state.showActionPanel) { vm.closePanels() }
     BackHandler(enabled = !state.showActionPanel) { onBack() }
 

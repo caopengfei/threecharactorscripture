@@ -33,6 +33,7 @@ import java.io.IOException
 
 class FakeAudioPlayer : AudioPlayer {
     val played = mutableListOf<String>()
+    var stopCount = 0
     var onCompletion: (() -> Unit)? = null
     var failPaths: Set<String> = emptySet()
     override fun play(assetPath: String, onComplete: () -> Unit, onError: (Exception) -> Unit) {
@@ -40,7 +41,7 @@ class FakeAudioPlayer : AudioPlayer {
         played.add(assetPath)
         onCompletion = onComplete
     }
-    override fun stop() {}
+    override fun stop() { stopCount++ }
     override fun release() {}
 }
 
@@ -164,6 +165,48 @@ class ReaderViewModelTest {
         assertEquals(ProgressRepository.STATUS_READ, db.unitProgressDao().get("u192")!!.status)
         assertEquals("u001", vm.state.value.unit.id)
         assertEquals(listOf("audio/u001.mp3"), player.played)
+    }
+
+    @Test
+    fun `退到后台停止朗读且连读不再自动翻句`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        player.onCompletion!!.invoke()                  // 第一句播完 → 连读进入第二句
+        settle()
+        assertEquals("u002", vm.state.value.unit.id)
+
+        val stopsBefore = player.stopCount
+        vm.onLeaveForeground()                          // 遥控器 HOME：退到后台
+        assertFalse(vm.state.value.isPlaying)
+        assertEquals(stopsBefore + 1, player.stopCount)
+
+        player.played.clear()
+        player.onCompletion!!.invoke()                  // 后台到达的过期播完回调
+        settle()
+        assertEquals("u002", vm.state.value.unit.id)    // 停在这一句，不往后翻
+        assertTrue(player.played.isEmpty())
+    }
+
+    @Test
+    fun `回前台续读离开时正在朗读的那句`() {
+        settle()
+        player.played.clear()
+        vm.onLeaveForeground()
+        vm.onEnterForeground()
+        assertEquals(listOf("audio/u001.mp3"), player.played)
+        assertTrue(vm.state.value.isPlaying)
+    }
+
+    @Test
+    fun `离开时未在朗读则回前台不自动朗读`() {
+        player.failPaths = setOf("audio/u001.mp3")
+        vm.replay()                                     // 播失败 → isPlaying=false
+        assertFalse(vm.state.value.isPlaying)
+        player.played.clear()
+        vm.onLeaveForeground()
+        vm.onEnterForeground()
+        assertTrue(player.played.isEmpty())
     }
 
     @Test
