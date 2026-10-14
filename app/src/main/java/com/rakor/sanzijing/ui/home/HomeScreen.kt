@@ -77,8 +77,10 @@ fun HomeScreen(
             )
         }
         Spacer(Modifier.height(28.dp))
+        // 30dp：tv-material Card 聚焦默认放大 1.1 倍会向布局外扩张（大卡每侧约 45px），
+        // 间距需覆盖外扩量，否则聚焦卡边框会贴住/压住相邻卡；聚焦态可见间隙约 8dp
         Row(
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(30.dp),
             modifier = Modifier.height(IntrinsicSize.Min),
         ) {
             Card(
@@ -153,7 +155,8 @@ fun HomeScreen(
         Spacer(Modifier.height(28.dp))
         Text("章节", style = SectionLabelStyle)
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        // 16dp：章节卡聚焦同样外扩约 15px/侧，间距需覆盖外扩量（详见上方主行注释）
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             state.chapters.forEach { ch ->
                 Card(
                     onClick = { onContinue(ch.firstUnitId) },
