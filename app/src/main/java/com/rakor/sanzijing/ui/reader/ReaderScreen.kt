@@ -133,6 +133,8 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
                         Spacer(Modifier.width(4.dp))
                         Text("朗读中 · 跟着一起读", style = CaptionStyle.copy(color = Coral))
                     }
+                } else if (state.paused) {
+                    Text("已暂停 · 按 OK 继续", style = CaptionStyle.copy(color = Coral))
                 }
             }
             // 内容契约：每单元恒为两个三字短语（ContentIntegrityTest 守卫）
@@ -161,14 +163,19 @@ fun ReaderScreen(app: SanzijingApp, startUnitId: String, onBack: () -> Unit) {
             }
             AnnotationCard(unit = state.unit)
             Spacer(Modifier.height(10.dp))
+            val okHint = when {
+                !state.settings.continuousPlay -> "OK 重读    长按OK 熟读"
+                state.paused -> "OK 继续"
+                state.isPlaying -> "OK 暂停"
+                else -> "OK 朗读"
+            }
             Text(
-                "← → 前后句    ↑ ↓ 换章    OK 重读    长按OK 熟读    菜单键 更多",
+                "← → 前后句    ↑ ↓ 换章    $okHint    菜单键 更多",
                 style = CaptionStyle,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-
         if (state.showActionPanel) {
             Box(Modifier.onFocusChanged { panelHasFocus = it.hasFocus }) {
                 ActionPanel(

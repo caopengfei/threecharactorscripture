@@ -34,6 +34,8 @@ data class ReaderUiState(
     val chapterSize: Int = 0,
     val showActionPanel: Boolean = false,
     val isPlaying: Boolean = false,
+    /** 连读模式下的暂停态。不变式：paused 为 true 时连读必定开启（关连读会结束暂停会话）。 */
+    val paused: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
     val statusOf: Map<String, Int> = emptyMap(),
     val toast: String? = null,
@@ -53,6 +55,8 @@ class ReaderViewModel(
 
     private val totalCount = contentRepo.units.size
     private var okDownAt: Long? = null
+    /** 每次 playCurrent 自增的播放序号：播完回调若发现在途已开始新播放（同一句重读）即作废。 */
+    private var playbackSeq = 0L
     private var collectorJobs: List<Job> = emptyList()
     private var inForeground = true
     private var resumeOnForeground = false
@@ -73,7 +77,10 @@ class ReaderViewModel(
         }
         collectorJobs = listOf(
             externalScope.launch {
-                settingsRepo.settings.collect { s -> _state.update { it.copy(settings = s) } }
+                settingsRepo.settings.collect { s ->
+                    _state.update { it.copy(settings = s) }
+                    if (!s.continuousPlay) endPauseIfAny()   // 设置页关掉连读也要结束暂停会话
+                }
             },
             externalScope.launch {
                 progressRepo.observeProgress().collect { p ->
@@ -114,6 +121,7 @@ class ReaderViewModel(
             chapterIndex = chapterIdx,
             chapterPos = chapter.units.indexOfFirst { it.id == unit.id } + 1,
             chapterSize = chapter.units.size,
+            paused = false,
         )
     }
 
@@ -132,6 +140,15 @@ class ReaderViewModel(
     fun setContinuous(enabled: Boolean) {
         _state.update { it.copy(settings = it.settings.copy(continuousPlay = enabled)) }
         tracked { settingsRepo.setContinuousPlay(enabled) }
+        if (!enabled) endPauseIfAny()
+    }
+
+    /** 暂停是连读模式下的状态：连读关掉即结束暂停会话并释放播放器，避免"已暂停/按OK继续"与"OK 重读"打架。 */
+    private fun endPauseIfAny() {
+        if (_state.value.paused) {
+            _state.update { it.copy(paused = false) }
+            audioPlayer.stop()
+        }
     }
 
     fun toggleActionPanel() = _state.update {
@@ -141,16 +158,36 @@ class ReaderViewModel(
     /** OK 按下：记录时刻（忽略重复 down）。 */
     fun okDown() { if (okDownAt == null) okDownAt = now() }
 
-    /** OK 抬起：>=600ms 长按标记熟读，短按重读当前句（小米盒子遥控器无播放键）。 */
+    /** OK 抬起：连读开启时做暂停 ⇄ 继续（长按不再标熟读，熟读走菜单面板的"本句熟读"）；
+     *  连读关闭时维持原语义——>=600ms 长按标记熟读，短按重读当前句（小米盒子遥控器无播放键）。 */
     fun okUp() {
         val downAt = okDownAt ?: return
         okDownAt = null
         val elapsed = now() - downAt
         if (elapsed > 10_000) return   // 遥控器丢抬起事件保护——超过 10 秒的按下视为残留状态，忽略本次
-        if (elapsed >= 600) {
-            tracked { progressRepo.toggleMastered(_state.value.unit.id) }
-        } else {
-            replay()
+        when {
+            _state.value.settings.continuousPlay -> togglePlayback()
+            elapsed >= 600 -> tracked { progressRepo.toggleMastered(_state.value.unit.id) }
+            else -> replay()
+        }
+    }
+
+    /** 连读开启时 OK 的动作：暂停 ⇄ 继续；空闲（未在播、无可续的暂停）则朗读当前句。 */
+    private fun togglePlayback() {
+        val st = _state.value
+        when {
+            st.paused -> {
+                if (audioPlayer.resume()) {
+                    _state.update { it.copy(isPlaying = true, paused = false) }
+                } else {
+                    playCurrent()   // 暂停的播放器已释放（如退过后台）：从头重读本句
+                }
+            }
+            st.isPlaying -> {
+                // pause 失败说明音频刚好播完（PlaybackCompleted 态不可 pause），交给播完回调收尾，不误置暂停态
+                if (audioPlayer.pause()) _state.update { it.copy(isPlaying = false, paused = true) }
+            }
+            else -> playCurrent()
         }
     }
 
@@ -170,9 +207,11 @@ class ReaderViewModel(
      *  音频是 application 级单例，不主动停的话后台会一直播下去，连读还会一路自动翻句记进度。 */
     fun onLeaveForeground() {
         inForeground = false
-        resumeOnForeground = _state.value.isPlaying
-        if (_state.value.isPlaying) {
-            _state.update { it.copy(isPlaying = false) }
+        val st = _state.value
+        resumeOnForeground = st.isPlaying
+        if (st.isPlaying || st.paused) {
+            // 暂停态也要释放：暂停中的 MediaPlayer 仍占资源，且回前台不自动续读（用户是主动停的）
+            _state.update { it.copy(isPlaying = false, paused = false) }
             audioPlayer.stop()
         }
     }
@@ -194,16 +233,23 @@ class ReaderViewModel(
     private fun moveTo(index: Int, forcePlay: Boolean = false) {
         val clamped = index.coerceIn(0, totalCount - 1)
         if (clamped == _state.value.unitIndex && !forcePlay) return
+        endPauseIfAny()   // 换句即结束暂停会话：stateFor 会清 paused，但暂停中的播放器必须显式释放
         _state.update { stateFor(clamped, it) }
         if (forcePlay || _state.value.settings.autoPlay) playCurrent()
     }
 
     private fun playCurrent() {
         val unit = _state.value.unit
-        _state.update { it.copy(isPlaying = true) }   // 先置 true：同步 onError 的 false 才能生效
+        val seq = ++playbackSeq
+        _state.update { it.copy(isPlaying = true, paused = false) }   // 先置 true：同步 onError 的 false 才能生效
         audioPlayer.play(
             assetPath = "audio/${unit.id}.mp3",
-            onComplete = { tracked { onPlaybackCompleted(unit.id) } },
+            onComplete = {
+                // 音频已确实播完，立刻同步翻掉播放态：若等下面的进度写入跑完再翻，这段窗口里 UI 仍显示"朗读中"，
+                // 此时按 OK 会落空、连读还会静默推进到下一句。
+                _state.update { if (it.unit.id == unit.id) it.copy(isPlaying = false) else it }
+                tracked { onPlaybackCompleted(unit.id, seq) }
+            },
             onError = {
                 _state.update {
                     // 过期回调守卫：单元已切换时不再翻转新单元的 isPlaying/误报 toast
@@ -213,11 +259,13 @@ class ReaderViewModel(
         )
     }
 
-    private suspend fun onPlaybackCompleted(unitId: String) {
+    private suspend fun onPlaybackCompleted(unitId: String, seq: Long) {
         progressRepo.onPlaybackCompleted(unitId)   // 旧音频确实播完，进度照记
+        if (seq != playbackSeq) return             // 期间已开始新的播放（如尾部窗口按 OK 重读），本次回调作废
         _state.update { if (it.unit.id == unitId) it.copy(isPlaying = false) else it }   // 过期回调不翻转新单元状态
         val st = _state.value
-        if (inForeground && st.unit.id == unitId && st.settings.continuousPlay) {
+        // paused 时用户刚按了暂停，此刻到达的播完回调（交错的遥控器操作）不再推进连读链
+        if (inForeground && !st.paused && st.unit.id == unitId && st.settings.continuousPlay) {
             // 连读循环：最后一句播完回到第一句；手动翻句（next/previous）仍首尾钳制不越界
             val next = if (st.unitIndex >= totalCount - 1) 0 else st.unitIndex + 1
             moveTo(next, forcePlay = true)

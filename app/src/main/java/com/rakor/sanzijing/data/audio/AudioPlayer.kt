@@ -12,12 +12,17 @@ import java.io.IOException
  */
 interface AudioPlayer {
     fun play(assetPath: String, onComplete: () -> Unit, onError: (Exception) -> Unit)
+    /** 暂停当前播放；返回 false 表示此刻无可暂停的播放（未开始或刚刚播完）。 */
+    fun pause(): Boolean
+    /** 从暂停处继续；返回 false 表示无法继续（播放器已释放/已播完），调用方应从头重读。 */
+    fun resume(): Boolean
     fun stop()
     fun release()
 }
 
 class MediaPlayerAudioPlayer(private val assets: AssetManager) : AudioPlayer {
     private var player: MediaPlayer? = null
+    private var paused = false
 
     override fun play(assetPath: String, onComplete: () -> Unit, onError: (Exception) -> Unit) {
         stop()
@@ -41,9 +46,35 @@ class MediaPlayerAudioPlayer(private val assets: AssetManager) : AudioPlayer {
         }
     }
 
+    /** 播完（PlaybackCompleted）或已释放时 pause 非法——捕获后返回 false，交给播完回调处理。 */
+    override fun pause(): Boolean {
+        val mp = player ?: return false
+        if (paused) return true
+        return try {
+            mp.pause()
+            paused = true
+            true
+        } catch (e: IllegalStateException) {
+            false
+        }
+    }
+
+    override fun resume(): Boolean {
+        val mp = player ?: return false
+        if (!paused) return false
+        return try {
+            mp.start()
+            paused = false
+            true
+        } catch (e: IllegalStateException) {
+            false
+        }
+    }
+
     override fun stop() {
         player?.release()   // release 在任意状态合法
         player = null
+        paused = false
     }
 
     override fun release() { stop() }

@@ -34,15 +34,44 @@ import java.io.IOException
 class FakeAudioPlayer : AudioPlayer {
     val played = mutableListOf<String>()
     var stopCount = 0
+    var pauseCount = 0
+    var resumeCount = 0
     var onCompletion: (() -> Unit)? = null
     var failPaths: Set<String> = emptySet()
+
+    /** true 时模拟 MediaPlayer 的 PlaybackCompleted 态：此时 pause 非法（真实实现返回 false）。 */
+    var ended = false
+
+    /** true 时模拟播放器已释放（如退后台 stop 过）：此时 resume 返回 false。 */
+    var released = false
+    private var paused = false
+
     override fun play(assetPath: String, onComplete: () -> Unit, onError: (Exception) -> Unit) {
         if (assetPath in failPaths) { onError(IOException("missing $assetPath")); return }
         played.add(assetPath)
         onCompletion = onComplete
+        paused = false
+        ended = false
+        released = false
     }
-    override fun stop() { stopCount++ }
-    override fun release() {}
+
+    override fun pause(): Boolean {
+        if (released || ended) return false
+        if (paused) return true
+        pauseCount++
+        paused = true
+        return true
+    }
+
+    override fun resume(): Boolean {
+        if (released || ended || !paused) return false
+        resumeCount++
+        paused = false
+        return true
+    }
+
+    override fun stop() { stopCount++; paused = false; released = true }
+    override fun release() { stop() }
 }
 
 @RunWith(RobolectricTestRunner::class)
@@ -53,6 +82,7 @@ class ReaderViewModelTest {
     private lateinit var content: ContentRepository
     private lateinit var player: FakeAudioPlayer
     private lateinit var scope: TestScope
+    private lateinit var settingsRepo: SettingsRepository
     private lateinit var vm: ReaderViewModel
 
     @Before
@@ -68,13 +98,13 @@ class ReaderViewModelTest {
         val store = PreferenceDataStoreFactory.create(
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         ) { File(dir, "settings.preferences_pb") }
-        val settings = SettingsRepository(store)
+        settingsRepo = SettingsRepository(store)
         scope = TestScope(StandardTestDispatcher())
         vm = ReaderViewModel(
             startUnitId = "u001",
             contentRepo = content,
             progressRepo = progress,
-            settingsRepo = settings,
+            settingsRepo = settingsRepo,
             audioPlayer = player,
             externalScope = scope,
         )
@@ -222,6 +252,173 @@ class ReaderViewModelTest {
         vm.okDown(); Thread.sleep(700); vm.okUp()
         settle()
         assertEquals(ProgressRepository.STATUS_READ, db.unitProgressDao().get("u001")!!.status)
+    }
+
+    @Test
+    fun `连读开启短按OK暂停，再按OK继续`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        player.played.clear()
+
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 第一下：暂停
+        assertTrue(vm.state.value.paused)
+        assertFalse(vm.state.value.isPlaying)
+        assertEquals(1, player.pauseCount)
+        assertTrue(player.played.isEmpty())             // 暂停不重读
+
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 第二下：继续
+        assertFalse(vm.state.value.paused)
+        assertTrue(vm.state.value.isPlaying)
+        assertEquals(1, player.resumeCount)
+        assertTrue(player.played.isEmpty())             // 从暂停处继续，不从头
+    }
+
+    @Test
+    fun `连读开启长按OK只暂停不标记熟读`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(700); vm.okUp()       // 长按
+        settle()
+        assertTrue(vm.state.value.paused)               // 连读下长按也只暂停
+        val p = db.unitProgressDao().get("u001")
+        assertTrue(p == null || p.status != ProgressRepository.STATUS_MASTERED)
+    }
+
+    @Test
+    fun `连读关闭短按OK仍是重读`() = runTest {
+        settle()
+        assertFalse(vm.state.value.settings.continuousPlay)
+        player.played.clear()
+        vm.okDown(); Thread.sleep(50); vm.okUp()
+        assertEquals(listOf("audio/u001.mp3"), player.played)
+        assertFalse(vm.state.value.paused)
+    }
+
+    @Test
+    fun `连读开启暂停后到达的播完回调不推进连读链`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 暂停
+        assertTrue(vm.state.value.paused)
+        player.onCompletion!!.invoke()                  // 交错的播完回调
+        settle()
+        assertEquals("u001", vm.state.value.unit.id)    // 停在暂停那一句
+        assertTrue(vm.state.value.paused)
+    }
+
+    @Test
+    fun `连读开启且音频刚播完时按OK不误置暂停态`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        player.ended = true                             // PlaybackCompleted 态：pause 非法
+        vm.okDown(); Thread.sleep(50); vm.okUp()
+        assertFalse(vm.state.value.paused)
+        assertEquals(0, player.pauseCount)
+    }
+
+    @Test
+    fun `连读开启暂停态播放器已释放时按OK从头重读`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 暂停
+        assertTrue(vm.state.value.paused)
+        player.released = true                          // 播放器被释放（如退过后台）
+        player.played.clear()
+
+        vm.okDown(); Thread.sleep(50); vm.okUp()
+        assertEquals(listOf("audio/u001.mp3"), player.played)   // resume 失败 → 从头重读
+        assertTrue(vm.state.value.isPlaying)
+        assertFalse(vm.state.value.paused)
+    }
+
+    @Test
+    fun `连读开启暂停后退后台，回前台不自动朗读且暂停态清除`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 暂停
+        assertTrue(vm.state.value.paused)
+
+        vm.onLeaveForeground()
+        assertFalse(vm.state.value.paused)              // 播放器已释放，不再显示暂停
+        player.played.clear()
+        vm.onEnterForeground()
+        assertTrue(player.played.isEmpty())             // 自己按停的，回前台不自动朗读
+    }
+
+    @Test
+    fun `连读暂停后关闭连读会结束暂停会话`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 暂停
+        assertTrue(vm.state.value.paused)
+
+        val stopsBefore = player.stopCount
+        vm.setContinuous(false)                         // 菜单里关掉连读
+        assertFalse(vm.state.value.paused)              // 暂停随连读关闭一起结束
+        assertEquals(stopsBefore + 1, player.stopCount) // 暂停中的播放器被释放
+
+        player.played.clear()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 连读关：OK 又变回重读
+        assertEquals(listOf("audio/u001.mp3"), player.played)
+    }
+
+    @Test
+    fun `连读开启尾部窗口按OK重读本句且不静默推进`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        player.played.clear()
+
+        player.onCompletion!!.invoke()                  // 音频播完，但进度写入尚未跑完（尾部窗口）
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 窗口内按 OK
+
+        settle()
+        assertEquals("u001", vm.state.value.unit.id)            // 不静默推进到下一句
+        assertEquals(listOf("audio/u001.mp3"), player.played)   // 本句重读
+        assertTrue(vm.state.value.isPlaying)
+        assertFalse(vm.state.value.paused)
+    }
+
+    @Test
+    fun `连读暂停后翻句会结束暂停会话并释放播放器`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        vm.okDown(); Thread.sleep(50); vm.okUp()        // 暂停
+        assertTrue(vm.state.value.paused)
+
+        settingsRepo.setAutoPlay(false)                 // 关自动朗读：翻句不会重新播放
+        settle()
+        assertFalse(vm.state.value.settings.autoPlay)
+        player.played.clear()
+        val stopsBefore = player.stopCount
+        vm.next()
+
+        assertFalse(vm.state.value.paused)              // 换句不再停在暂停态
+        assertEquals(stopsBefore + 1, player.stopCount) // 暂停中的播放器被显式释放
+        assertTrue(player.played.isEmpty())             // 未自动重新播放
+    }
+
+    @Test
+    fun `连读开启快速连按OK只切换暂停与继续`() = runTest {
+        settle()
+        vm.setContinuous(true)
+        settle()
+        player.played.clear()
+
+        repeat(4) { vm.okDown(); Thread.sleep(30); vm.okUp() }   // 暂停→继续→暂停→继续
+        assertFalse(vm.state.value.paused)
+        assertTrue(vm.state.value.isPlaying)
+        assertEquals(2, player.pauseCount)
+        assertEquals(2, player.resumeCount)
+        assertTrue(player.played.isEmpty())             // 全程不重读
     }
 
     @Test
