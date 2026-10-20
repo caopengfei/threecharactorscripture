@@ -14,6 +14,24 @@
 
 所有内容与音频都打包在 APK 内，**无需网络、无广告、无账号**。
 
+## 界面预览
+
+截图取自 Android TV 模拟器（1080p，纯遥控器操作）；进度数据为演示状态。
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/home.png" width="100%" alt="首页"><br><sub><b>首页</b>：继续学习、总进度、连续学习天数，六章卡片直达</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/reader.png" width="100%" alt="阅读页"><br><sub><b>阅读页</b>：一屏两句大字 + 拼音，注释 / 译文 / 典故常驻下方</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/action-panel.png" width="100%" alt="操作面板"><br><sub><b>操作面板</b>（菜单键）：连读开关、本句熟读、跳转章节</sub></td>
+    <td align="center"><img src="docs/screenshots/report.png" width="100%" alt="学习报告"><br><sub><b>学习报告</b>：环形总进度、熟读句数、累计 / 今日时长与每章分项</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/settings.png" width="50%" alt="设置"><br><sub><b>设置</b>：自动朗读、连读、拼音显示、清除学习进度</sub></td>
+  </tr>
+</table>
+
 ## 功能特性
 
 - **逐句精读**：一屏一句（两个三字短语），课本式「楷体大字 + 拼音」混排，远距离可读
@@ -106,7 +124,7 @@ app/src/main/java/com/rakor/sanzijing/
     ├── settings/              # 设置（自动朗读 / 连读 / 拼音 / 清除进度）
     ├── common/                # 拼音短语排版、进度条、Toast
     └── theme/                 # 童趣暖阳配色与课本式字体
-docs/                          # 设计规格、实现计划、语音生成流程
+docs/                          # 设计规格、实现计划、语音生成流程、界面截图（screenshots/）
 tools/                         # 内容与资产生成脚本（不参与打包）
 ```
 
