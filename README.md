@@ -104,7 +104,59 @@ sdk.dir=/path/to/Android/Sdk
 ./gradlew connectedDebugAndroidTest  # 设备冒烟测试
 ```
 
-构建 release 包需要本机签名：在 `~/.gradle/gradle.properties` 提供 `RELEASE_STORE_PASSWORD`、`RELEASE_KEY_PASSWORD`，并在 `app/build.gradle.kts` 中把 `storeFile` 指向自己的 keystore。缺少这些配置时请只打 debug 包。
+产物命名由 `androidComponents` 统一配置：`app/build/outputs/apk/release/sanzijing-v<versionName>.apk`（debug 为 `sanzijing-v<versionName>-debug.apk`），不再使用默认的 `app-release.apk`。
+
+### Release 签名
+
+`app/build.gradle.kts` 按以下优先级取签名信息：
+
+1. 仓库根目录 `keystore.properties`（不入库，已在 `.gitignore` 中）
+
+   ```properties
+   storeFile=D:/develop/key/rakor.jks
+   storePassword=******
+   keyAlias=rakor
+   keyPassword=******
+   ```
+
+2. Gradle 属性 `RELEASE_STORE_FILE` / `RELEASE_STORE_PASSWORD` / `RELEASE_KEY_ALIAS` / `RELEASE_KEY_PASSWORD`（本机放在 `~/.gradle/gradle.properties`，不进仓库）
+
+仓库里不含任何密钥库路径；两者都拿不到时 `assembleRelease` 仍会成功，但**回退 debug 签名**并在构建日志打印警告（`CN=Android Debug`，只能自测）。
+
+### 自动发版（GitHub Actions）
+
+`.github/workflows/release.yml`：推 `v*` tag 自动构建签名 APK 并发 GitHub Release；`workflow_dispatch` 手动触发只构建、不发版（用来验证配置）。
+
+仓库侧一次性设置：
+
+- `Settings → Actions → General → Workflow permissions` 选 **Read and write**（否则创建 Release 会 403）
+- Secrets 放 Repository secrets 或 `release` 环境 secrets 均可（同名时环境优先，工作流已绑定 `environment: release`）：
+
+  | Secret | 内容 |
+  |---|---|
+  | `KEYSTORE_BASE64` | 密钥库文件的 base64；缺失即回退 debug 签名 |
+  | `KEYSTORE_PASSWORD` | 密钥库密码 |
+  | `KEY_ALIAS` | 密钥别名 |
+  | `KEY_PASSWORD` | 密钥密码 |
+
+- 生成 `KEYSTORE_BASE64`（PowerShell）：
+
+  ```powershell
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("D:\develop\key\rakor.jks")) | Set-Clipboard
+  ```
+
+发版步骤：
+
+```powershell
+# 1. 改 app/build.gradle.kts 里的 versionCode（+1）与 versionName
+# 2. 提交，并打与 versionName 完全一致的 tag（工作流会校验，不一致直接失败）
+git commit -am "release: v1.1"
+git tag v1.1 -m "三字经 v1.1"
+git push origin main
+git push origin v1.1        # 这一下触发构建与发版
+```
+
+构建完成后工作流用 `apksigner` 实际读取产物证书：配了 `KEYSTORE_BASE64` 却拿到 `CN=Android Debug` 时直接失败，避免静默发出 debug 签名包。Release 附件为 `sanzijing-v<versionName>.apk` 及其 `.sha256`。
 
 ## 项目结构
 

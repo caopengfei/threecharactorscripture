@@ -12,3 +12,7 @@ tools/gradle-8.10.2/
 __pycache__/
 *.part
 tools/LXGWWenKai-Medium.ttf
+keystore.properties
+release.jks
+*.jks
+*.keystore

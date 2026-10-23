@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']        # 打 tag 才构建并发版
+  workflow_dispatch:    # 手动跑 = 只构建、不发版（用来验证配置）
+
+permissions:
+  contents: write        # 建 GitHub Release 必需
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 构建 Release APK
+    runs-on: ubuntu-latest
+    # 用 Environment secrets 时必须写；用 Repository secrets 时这一行可删。
+    # 环境不存在时 GitHub 会自动创建（无保护规则），所以默认带上无副作用。
+    environment: release
+    steps:
+      - uses: actions/checkout@v5
+
+      # 版本号唯一来源：app/build.gradle.kts 的 defaultConfig
+      - name: 读取版本号
+        id: version
+        run: |
+          VERSION=$(grep -m1 -E '^[[:space:]]*versionName[[:space:]]*=' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          CODE=$(grep -m1 -E '^[[:space:]]*versionCode[[:space:]]*=' app/build.gradle.kts | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')
+          [ -n "$VERSION" ] && [ -n "$CODE" ] || { echo "::error::解析版本号失败"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "版本：$VERSION (versionCode=$CODE)"
+
+      # 防呆：tag 与 versionName 不一致直接失败，避免发错版本号
+      - name: 校验 tag 与版本号一致
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"; TAG="${TAG#v}"
+          if [ "$TAG" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 versionName=${{ steps.version.outputs.version }} 不一致"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 仓库里的 gradle.properties 带作者本机配置（JDK 路径、本地代理），runner 上必须剔除
+      - name: 清理本机专用 Gradle 配置
+        run: |
+          sed -i '/^org\.gradle\.java\.home=/d' gradle.properties
+          sed -i '/^systemProp\./d' gradle.properties
+          cat gradle.properties
+
+      - name: 环境自检
+        run: |
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
+
+      # 配了 KEYSTORE_BASE64 就用正式签名；否则由构建脚本回退 debug 签名并告警
+      - name: 配置发布签名
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # 只打印长度/别名，不泄露内容，便于定位"Secret 到底有没有注入"
+          echo "B64 长度=${#KEYSTORE_BASE64} KEY_ALIAS=${KEY_ALIAS:-<空>}"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::未配置 KEYSTORE_BASE64，产物将回退 debug 签名（仅适合自测）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+          cat > keystore.properties <<EOF
+          storeFile=release.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: 构建 Release APK
+        run: |
+          chmod +x gradlew          # Windows 提交的 gradlew 可能是 100644
+          ./gradlew --stacktrace --no-daemon assembleRelease
+
+      - name: 收集产物并计算校验和
+        id: apk
+        run: |
+          APK=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n1)
+          [ -n "$APK" ] || { echo "::error::未找到 release APK"; exit 1; }
+          ( cd "$(dirname "$APK")" && sha256sum "$(basename "$APK")" > "$(basename "$APK").sha256" )
+          echo "name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
+          echo "dir=$(dirname "$APK")" >> "$GITHUB_OUTPUT"
+          echo "产物：$APK"
+
+      # 关键：不信构建脚本，实际读产物签名证书
+      - name: 校验 APK 签名
+        env:
+          SIGNING_ENABLED: ${{ steps.sign.outputs.enabled }}
+        run: |
+          APK="${{ steps.apk.outputs.dir }}/${{ steps.apk.outputs.name }}"
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
+          DN=$("$APKSIGNER" verify --print-certs "$APK" | grep -m1 'certificate DN' || true)
+          echo "签名证书：$DN"
+          [ -n "$DN" ] || { echo "::error::apksigner 未读出证书，产物可能未签名"; exit 1; }
+          if [ "$SIGNING_ENABLED" = "true" ]; then
+            echo "$DN" | grep -q 'CN=Android Debug' && {
+              echo "::error::配了 KEYSTORE_BASE64 却是 debug 签名，请核对 Secret 内容"
+              exit 1; }
+          else
+            echo "::warning::产物为 debug 签名，仅适合自测"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: |
+            ${{ steps.apk.outputs.dir }}/*.apk
+            ${{ steps.apk.outputs.dir }}/*.sha256
+          if-no-files-found: error
+
+      - name: 创建 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')     # 手动触发时不发版
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 三字经 v${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.apk.outputs.dir }}/*.apk
+            ${{ steps.apk.outputs.dir }}/*.sha256
