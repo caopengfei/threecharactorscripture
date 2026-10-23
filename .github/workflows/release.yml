@@ -111,13 +111,16 @@ jobs:
         run: |
           APK="${{ steps.apk.outputs.dir }}/${{ steps.apk.outputs.name }}"
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
-          DN=$("$APKSIGNER" verify --print-certs "$APK" | grep -m1 'certificate DN' || true)
-          echo "签名证书：$DN"
+          # 新版 build-tools 输出形如 "V2 Signer: certificate DN: CN=xxx"，只取 DN 本身
+          DN=$("$APKSIGNER" verify --print-certs "$APK" | grep -m1 'certificate DN' | sed -E 's/.*certificate DN:[[:space:]]*//' || true)
+          echo "签名证书：${DN:-<空>}"
           [ -n "$DN" ] || { echo "::error::apksigner 未读出证书，产物可能未签名"; exit 1; }
           if [ "$SIGNING_ENABLED" = "true" ]; then
-            echo "$DN" | grep -q 'CN=Android Debug' && {
+            # 注意：判断要放进 if 条件里，`cmd && { exit 1; }` 在 bash -e 下"没匹配"本身就是非零退出，会把步骤判失败
+            if echo "$DN" | grep -q 'CN=Android Debug'; then
               echo "::error::配了 KEYSTORE_BASE64 却是 debug 签名，请核对 Secret 内容"
-              exit 1; }
+              exit 1
+            fi
           else
             echo "::warning::产物为 debug 签名，仅适合自测"
           fi
