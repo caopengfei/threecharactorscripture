@@ -21,6 +21,8 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # 完整历史 + 全部 tag，供生成提交清单用
 
       # 版本号唯一来源：app/build.gradle.kts 的 defaultConfig
       - name: 读取版本号
@@ -133,13 +135,37 @@ jobs:
             ${{ steps.apk.outputs.dir }}/*.sha256
           if-no-files-found: error
 
+      # Release 描述：自动生成自上个 tag（或首次发版的全量）以来的提交清单
+      - name: 生成提交清单
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null); then
+            RANGE="$PREV..$GITHUB_REF_NAME"
+            HEADING="**$PREV → $GITHUB_REF_NAME**（共 $(git rev-list --count "$RANGE") 个提交）"
+          else
+            RANGE="$GITHUB_REF_NAME"
+            HEADING="**首次发版**（共 $(git rev-list --count "$RANGE") 个提交）"
+          fi
+          {
+            echo "## 更新内容"
+            echo
+            echo "$HEADING"
+            echo
+            git log --no-merges --pretty=format:"- %s ([%h]($REPO_URL/commit/%H))" "$RANGE"
+            echo
+          } > release-notes.md
+          cat release-notes.md
+
       - name: 创建 GitHub Release
         if: startsWith(github.ref, 'refs/tags/')     # 手动触发时不发版
         uses: softprops/action-gh-release@v2
         with:
           name: 三字经 v${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release-notes.md                # 自动生成的提交清单
+          generate_release_notes: true               # 末尾追加 GitHub 官方 Full Changelog 链接
           fail_on_unmatched_files: true
           files: |
             ${{ steps.apk.outputs.dir }}/*.apk
